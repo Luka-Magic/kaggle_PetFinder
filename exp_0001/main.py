@@ -293,3 +293,7 @@ def main(cfg: DictConfig):
             #         'epoch': epoch, 'lr': lr})
             # model_name = f"{cfg.model_arch}_fold_{fold}_{epoch}"
             # torch.save(model.state_dict(), model_name)
+
+
+if __name__ == '__main__':
+    main()
