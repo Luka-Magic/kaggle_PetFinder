@@ -1,5 +1,5 @@
-data_path: /content/drive/MyDrive/kaggle_PetFinder/data
 nb_num: 1
+data_path: /content/drive/MyDrive/kaggle_PetFinder/data
 seed: 77
 epoch: 100
 fold_num: 5
