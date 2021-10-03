@@ -74,7 +74,8 @@ class pf_dataset(Dataset):
 
 def get_train_transforms(cfg):
     return Compose([
-        PadIfNeeded(min_height=cfg.img_size*3, min_width=cfg.img_size*3, border_mode=3),
+        PadIfNeeded(min_height=cfg.img_size*3,
+                    min_width=cfg.img_size*3, border_mode=3),
         Resize(cfg.img_size, cfg.img_size),
         #         HorizontalFlip(p=0.5),
         #         VerticalFlip(p=0.5),
@@ -264,7 +265,7 @@ def main(cfg: DictConfig):
             continue
 
         wandb.init(project='kaggle_PF_pre', entity='luka-magic',
-                   name='exp_' + str(cfg.nb_num).zfill(4))
+                   name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
 
         train_loader, valid_loader, _ = prepare_dataloader(
             cfg, train_df, train_index, valid_index)
