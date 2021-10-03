@@ -1,19 +1,19 @@
-data_path : '/content/drive/MyDrive/kaggle_PetFinder/data'
-nb_num : 1
-seed : 77
-epoch : 100
-fold_num : 5
-use_fold : 0
-model_arch : tf_efficientnet_b0
-img_size : 256
-train_bs : 32
-valid_bs : 32
-num_workers : 4
-device : 'cuda:0' if torch.cuda.is_available else 'cpu'
-model_selection : StratifiedKFold
-optimizer : AdamW
-lr : 1e-3
-weight_decay : 1e-4
-beta1 : 0.5
-beta2 : 0.999
-scheduler : OneCycleLR
+data_path: /content/drive/MyDrive/kaggle_PetFinder/data
+nb_num: 1
+seed: 77
+epoch: 100
+fold_num: 5
+use_fold: 0
+model_arch: tf_efficientnet_b0
+img_size: 256
+train_bs: 32
+valid_bs: 32
+num_workers: 4
+device: 'cuda:0' if torch.cuda.is_available else 'cpu'
+model_selection: StratifiedKFold
+optimizer: AdamW
+lr: 1e-3
+weight_decay: 1e-4
+beta1: 0.5
+beta2: 0.999
+scheduler: OneCycleLR
