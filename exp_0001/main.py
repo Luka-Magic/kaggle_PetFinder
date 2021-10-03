@@ -244,7 +244,7 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
     return score_epoch, loss.detach().cpu().numpy()
 
 
-@hydra.main(config_path='config.yaml')
+@hydra.main(config_name='config')
 def main(cfg: DictConfig):
     seed_everything(cfg.seed)
 
