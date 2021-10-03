@@ -246,6 +246,7 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
 
 @hydra.main(config_path='.', config_name='config')
 def main(cfg: DictConfig):
+    wandb.login()
     seed_everything(cfg.seed)
 
     train_df, _ = load_data(cfg.data_path)
@@ -257,7 +258,7 @@ def main(cfg: DictConfig):
         if fold != cfg.use_fold:
             continue
 
-        # wandb.init(project='kaggle_PF_pre', entity='luka-magic', name='exp_' + str(cfg.nb_num).zfill(4))
+        wandb.init(project='kaggle_PF_pre', entity='luka-magic', name='exp_' + str(cfg.nb_num).zfill(4))
 
         train_loader, valid_loader, _ = prepare_dataloader(
             cfg, train_df, train_index, valid_index)
@@ -288,11 +289,9 @@ def main(cfg: DictConfig):
                     epoch, model, loss_fn, valid_loader, device)
                 print(f'VALID | epoch: {epoch}, score: {valid_score_epoch}')
 
-            # wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-            #         'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-            #         'epoch': epoch, 'lr': lr})
-            # model_name = f"{cfg.model_arch}_fold_{fold}_{epoch}"
-            # torch.save(model.state_dict(), model_name)
+            wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
+                    'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                    'epoch': epoch, 'lr': lr})
 
 
 if __name__ == '__main__':
