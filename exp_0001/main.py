@@ -77,11 +77,12 @@ def get_train_transforms(cfg):
         PadIfNeeded(min_height=cfg.img_size*3,
                     min_width=cfg.img_size*3, border_mode=3),
         Resize(cfg.img_size, cfg.img_size),
-        #         HorizontalFlip(p=0.5),
-        #         VerticalFlip(p=0.5),
-        #         ShiftScaleRotate(shift_limit=(-0.1, 0.1), scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
-        #         # RandomGridShuffle(grid=(3, 3)),
-        #         Cutout(num_holes=8, max_h_size=30, max_w_size=30),
+        RandomResizedCrop(cfg.img_size, cfg.img_size, scale=(0.5, 1.0)),
+        HorizontalFlip(p=0.5),
+        # VerticalFlip(p=0.5),
+        # ShiftScaleRotate(shift_limit=(-0.1, 0.1), scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
+        # # RandomGridShuffle(grid=(3, 3)),
+        # Cutout(num_holes=8, max_h_size=30, max_w_size=30),
         Normalize(max_pixel_value=255., p=1.0),
         ToTensorV2()
     ])
@@ -197,6 +198,8 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, data_loader, device, sched
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
 
+        preds_temp = np.clip(preds_temp, 0, 100)
+
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
@@ -208,6 +211,8 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, data_loader, device, sched
 
     preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
+
+    preds_epoch = np.clip(preds_temp, 0, 100)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
@@ -237,6 +242,8 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
 
+        preds_temp = np.clip(preds_temp, 0, 100)
+
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
@@ -244,6 +251,8 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
 
     preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
+
+    preds_epoch = np.clip(preds_temp, 0, 100)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
