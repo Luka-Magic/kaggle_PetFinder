@@ -1,5 +1,5 @@
 # Python Libraries
-from albumentations import Compose, Resize, RandomResizedCrop, CenterCrop, HorizontalFlip, VerticalFlip, ShiftScaleRotate, Cutout, RandomGridShuffle, Normalize
+from albumentations import Compose, Resize, RandomResizedCrop, CenterCrop, HorizontalFlip, VerticalFlip, ShiftScaleRotate, Cutout, RandomGridShuffle, Normalize, PadIfNeeded
 import wandb
 from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import Dataset, DataLoader
@@ -74,7 +74,8 @@ class pf_dataset(Dataset):
 
 def get_train_transforms(cfg):
     return Compose([
-        RandomResizedCrop(cfg.img_size, cfg.img_size),
+        PadIfNeeded(min_height=cfg.img_size*3, min_width=cfg.img_size*3, border_mode=3),
+        Resize(cfg.img_size, cfg.img_size),
         #         HorizontalFlip(p=0.5),
         #         VerticalFlip(p=0.5),
         #         ShiftScaleRotate(shift_limit=(-0.1, 0.1), scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
@@ -87,7 +88,9 @@ def get_train_transforms(cfg):
 
 def get_valid_transforms(cfg):
     return Compose([
-        RandomResizedCrop(cfg.img_size, cfg.img_size),
+        PadIfNeeded(min_height=cfg.img_size*3,
+                    min_width=cfg.img_size*3, border_mode=3),
+        Resize(cfg.img_size, cfg.img_size),
         Normalize(max_pixel_value=255., p=1.0),
         ToTensorV2()
     ])
@@ -95,7 +98,9 @@ def get_valid_transforms(cfg):
 
 def get_test_transforms(cfg):
     return Compose([
-        RandomResizedCrop(cfg.img_size, cfg.img_size),
+        PadIfNeeded(min_height=cfg.img_size*3,
+                    min_width=cfg.img_size*3, border_mode=3),
+        Resize(cfg.img_size, cfg.img_size),
         Normalize(max_pixel_value=255., p=1.0),
         ToTensorV2()
     ])
@@ -258,7 +263,8 @@ def main(cfg: DictConfig):
         if fold != cfg.use_fold:
             continue
 
-        wandb.init(project='kaggle_PF_pre', entity='luka-magic', name='exp_' + str(cfg.nb_num).zfill(4))
+        wandb.init(project='kaggle_PF_pre', entity='luka-magic',
+                   name='exp_' + str(cfg.nb_num).zfill(4))
 
         train_loader, valid_loader, _ = prepare_dataloader(
             cfg, train_df, train_index, valid_index)
@@ -290,8 +296,8 @@ def main(cfg: DictConfig):
                 print(f'VALID | epoch: {epoch}, score: {valid_score_epoch}')
 
             wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-                    'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                    'epoch': epoch, 'lr': lr})
+                       'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                       'epoch': epoch, 'lr': lr})
 
 
 if __name__ == '__main__':
