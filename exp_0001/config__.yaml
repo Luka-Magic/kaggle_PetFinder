@@ -9,7 +9,7 @@
 # train_bs: 32
 # valid_bs: 32
 # num_workers: 4
-# device: 'cuda:0' if torch.cuda.is_available else 'cpu'
+# device: cuda:0
 # model_selection: StratifiedKFold
 # optimizer: AdamW
 # lr: 1e-3
