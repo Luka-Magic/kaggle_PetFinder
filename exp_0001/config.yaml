@@ -8,7 +8,7 @@ model_arch: tf_efficientnet_b0
 img_size: 256
 train_bs: 32
 valid_bs: 32
-num_workers: os.cpu_count()
+num_workers: 2
 device: cuda:0
 mean: [0.485, 0.456, 0.406]
 std: [0.229, 0.224, 0.225]
