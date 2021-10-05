@@ -35,7 +35,6 @@ train_aug:
 
 valid_aug:
   PadIfNeeded:
-  PadIfNeeded:
     min_height: ${data.pad_img_size}
     min_width: ${data.pad_img_size}
     border_mode: 3
