@@ -97,7 +97,7 @@ class pf_model(nn.Module):
         return x
 
 
-def prepare_dataloader(data_cfg, train_df, train_index, valid_index):
+def prepare_dataloader(cfg, train_df, train_index, valid_index):
 
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
@@ -240,9 +240,11 @@ def main(cfg: DictConfig):
 
         wandb.init(project='kaggle_PF_pre', entity='luka-magic',
                    name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
+        train_cfg = cfg.train
+        data_cfg = cfg.data
 
         train_loader, valid_loader, _ = prepare_dataloader(
-            cfg, train_df, train_index, valid_index)
+            data_cfg, train_df, train_index, valid_index)
 
         device = torch.device(cfg.device)
 
@@ -250,7 +252,6 @@ def main(cfg: DictConfig):
 
         scaler = GradScaler()
 
-        train_cfg = cfg.train
 
         if train_cfg.optimizer == 'AdamW':
             optim = torch.optim.AdamW(
