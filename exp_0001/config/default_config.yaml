@@ -11,8 +11,8 @@ train_bs: 16
 valid_bs: 16
 num_workers: 2
 device: cuda:0
-aug:
+
+defaults:
   - aug: aug
-train:
   - train: train
 
