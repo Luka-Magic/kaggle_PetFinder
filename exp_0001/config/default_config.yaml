@@ -12,6 +12,6 @@ num_workers: 2
 device: cuda:0
 
 defaults:
-  - aug: aug
+  - data: data
   - train: train
 
