@@ -11,8 +11,10 @@ num_workers: 2
 
 train_aug:
   PadIfNeeded:
-    min_height: ${pad_img_size}
-    min_width: ${pad_img_size}
+    min_height: ${img_size}
+    min_width: ${img_size}
+    # min_height: ${pad_img_size}
+    # min_width: ${pad_img_size}
     border_mode: 3
     p: 1.0
   Resize:
@@ -35,8 +37,10 @@ train_aug:
 
 valid_aug:
   PadIfNeeded:
-    min_height: ${pad_img_size}
-    min_width: ${pad_img_size}
+    min_height: ${img_size}
+    min_width: ${img_size}
+    # min_height: ${pad_img_size}
+    # min_width: ${pad_img_size}
     border_mode: 3
     p: 1.0
   Resize:
@@ -50,8 +54,10 @@ valid_aug:
 
 tta_aug:
   PadIfNeeded:
-    min_height: ${pad_img_size}
-    min_width: ${pad_img_size}
+    min_height: ${img_size}
+    min_width: ${img_size}
+    # min_height: ${pad_img_size}
+    # min_width: ${pad_img_size}
     border_mode: 3
     p: 1.0
   Resize:
