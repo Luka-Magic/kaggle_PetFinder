@@ -1,5 +1,5 @@
 # Python Libraries
-from albumentations import Compose, Resize, RandomResizedCrop, CenterCrop, HorizontalFlip, VerticalFlip, ShiftScaleRotate, Cutout, RandomGridShuffle, Normalize, PadIfNeeded
+import albumentations
 import wandb
 from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import Dataset, DataLoader
@@ -72,52 +72,65 @@ class pf_dataset(Dataset):
         return img
 
 
-def get_train_transforms(cfg):
-    return Compose([
-        PadIfNeeded(min_height=cfg.img_size*3,
-                    min_width=cfg.img_size*3, border_mode=3),
-        Resize(cfg.img_size, cfg.img_size),
-        RandomResizedCrop(cfg.img_size, cfg.img_size, scale=(0.5, 1.0)),
-        HorizontalFlip(p=0.5),
-        # VerticalFlip(p=0.5),
-        # ShiftScaleRotate(shift_limit=(-0.1, 0.1), scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
-        # # RandomGridShuffle(grid=(3, 3)),
-        # Cutout(num_holes=8, max_h_size=30, max_w_size=30),
-        Normalize(max_pixel_value=255., p=1.0),
-        ToTensorV2()
-    ])
+# def get_train_transforms(cfg):
+#     return Compose([
+#         PadIfNeeded(min_height=cfg.img_size*3,
+#                     min_width=cfg.img_size*3, border_mode=3),
+#         Resize(cfg.img_size, cfg.img_size),
+#         RandomResizedCrop(cfg.img_size, cfg.img_size, scale=(0.5, 1.0)),
+#         HorizontalFlip(p=0.5),
+#         # VerticalFlip(p=0.5),
+#         # ShiftScaleRotate(shift_limit=(-0.1, 0.1), scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
+#         # # RandomGridShuffle(grid=(3, 3)),
+#         # Cutout(num_holes=8, max_h_size=30, max_w_size=30),
+#         Normalize(max_pixel_value=255., p=1.0),
+#         ToTensorV2()
+#     ])
 
 
-def get_valid_transforms(cfg):
-    return Compose([
-        PadIfNeeded(min_height=cfg.img_size*3,
-                    min_width=cfg.img_size*3, border_mode=3),
-        Resize(cfg.img_size, cfg.img_size),
-        Normalize(max_pixel_value=255., p=1.0),
-        ToTensorV2()
-    ])
+# def get_valid_transforms(cfg):
+#     return Compose([
+#         PadIfNeeded(min_height=cfg.img_size*3,
+#                     min_width=cfg.img_size*3, border_mode=3),
+#         Resize(cfg.img_size, cfg.img_size),
+#         Normalize(max_pixel_value=255., p=1.0),
+#         ToTensorV2()
+#     ])
 
 
-def get_test_transforms(cfg):
-    return Compose([
-        PadIfNeeded(min_height=cfg.img_size*3,
-                    min_width=cfg.img_size*3, border_mode=3),
-        Resize(cfg.img_size, cfg.img_size),
-        Normalize(max_pixel_value=255., p=1.0),
-        ToTensorV2()
-    ])
+# def get_test_transforms(cfg):
+#     return Compose([
+#         PadIfNeeded(min_height=cfg.img_size*3,
+#                     min_width=cfg.img_size*3, border_mode=3),
+#         Resize(cfg.img_size, cfg.img_size),
+#         Normalize(max_pixel_value=255., p=1.0),
+#         ToTensorV2()
+#     ])
 
 
-def get_tta_transforms(cfg):
-    return Compose([
-        RandomResizedCrop(cfg.img_size, cfg.img_size,
-                          scale=(1., 1.), ratio=(1., 1.)),
-        HorizontalFlip(p=0.5),
-        VerticalFlip(p=0.5),
-        ShiftScaleRotate(shift_limit=(-0.1, 0.1),
-                         scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
-        ToTensorV2()
-    ])
+# def get_tta_transforms(cfg):
+#     return Compose([
+#         RandomResizedCrop(cfg.img_size, cfg.img_size,
+#                           scale=(1., 1.), ratio=(1., 1.)),
+#         HorizontalFlip(p=0.5),
+#         VerticalFlip(p=0.5),
+#         ShiftScaleRotate(shift_limit=(-0.1, 0.1),
+#                          scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
+#         ToTensorV2()
+#     ])
+
+def get_transforms(cfg, phase):
+    if phase == 'train':
+        aug = cfg.train_aug
+    elif phase == 'valid':
+        aug = cfg.valid_aug
+    elif phase == 'tta':
+        aug = cfg.tta_aug
+
+    augs = [getattr(albumentations, name)(**kwargs)
+            for name, kwargs in aug.items()]
+    augs.append(ToTensorV2(p=1.))
+    return albumentations.Compose(augs)
 
 
 class pf_model(nn.Module):
@@ -137,9 +150,9 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
 
-    train_ds = pf_dataset(train_, transforms=get_train_transforms(cfg))
-    valid_ds = pf_dataset(valid_, transforms=get_valid_transforms(cfg))
-    valid_tta_ds = pf_dataset(valid_, transforms=get_tta_transforms(cfg))
+    train_ds = pf_dataset(train_, transforms=get_transforms(cfg, 'train'))
+    valid_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'valid'))
+    valid_tta_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
