@@ -73,11 +73,11 @@ class pf_dataset(Dataset):
 
 def get_transforms(cfg, phase):
     if phase == 'train':
-        aug = cfg.train_aug
+        aug = cfg.aug.train_aug
     elif phase == 'valid':
-        aug = cfg.valid_aug
+        aug = cfg.aug.valid_aug
     elif phase == 'tta':
-        aug = cfg.tta_aug
+        aug = cfg.aug.tta_aug
 
     augs = [getattr(albumentations, name)(**kwargs)
             for name, kwargs in aug.items()]
@@ -224,7 +224,7 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
     return score_epoch, loss.detach().cpu().numpy()
 
 
-@hydra.main(config_path='.', config_name='config')
+@hydra.main(config_path='config', config_name='default_config')
 def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
