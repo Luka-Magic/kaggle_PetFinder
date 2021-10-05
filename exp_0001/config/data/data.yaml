@@ -11,8 +11,8 @@ num_workers: 2
 
 train_aug:
   PadIfNeeded:
-    min_height: ${img_size}
-    min_width: ${img_size}
+    min_height: ${data.img_size}
+    min_width: ${data.img_size}
     # min_height: ${pad_img_size}
     # min_width: ${pad_img_size}
     border_mode: 3
