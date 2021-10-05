@@ -235,15 +235,15 @@ def main(cfg: DictConfig):
     folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
         X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
 
+    wandb.init(project=cfg.wandb_project, entity='luka-magic',
+               name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
+
+    train_cfg = cfg.train
+    data_cfg = cfg.data
+
     for fold, (train_index, valid_index) in enumerate(folds):
-        if fold != cfg.use_fold:
+        if fold not in cfg.use_fold:
             continue
-
-        wandb.init(project='kaggle_PF_pre', entity='luka-magic',
-                   name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
-
-        train_cfg = cfg.train
-        data_cfg = cfg.data
 
         train_loader, valid_loader, _ = prepare_dataloader(
             data_cfg, train_df, train_index, valid_index)
