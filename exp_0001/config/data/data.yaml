@@ -11,18 +11,16 @@ num_workers: 2
 
 train_aug:
   PadIfNeeded:
-    min_height: ${data.img_size}
-    min_width: ${data.img_size}
-    # min_height: ${pad_img_size}
-    # min_width: ${pad_img_size}
+    min_height: ${data.pad_img_size}
+    min_width: ${data.pad_img_size}
     border_mode: 3
     p: 1.0
   Resize:
-    height: ${img_size}
-    width: ${img_size}
+    height: ${data.img_size}
+    width: ${data.img_size}
   RandomResizedCrop:
-    height: ${img_size}
-    width: ${img_size}
+    height: ${data.img_size}
+    width: ${data.img_size}
     scale: [0.3, 1.0]
     p: 1.0
   HorizontalFlip: 
@@ -30,42 +28,39 @@ train_aug:
   VerticalFlip: 
     p: 0.5
   Normalize:
-    mean: ${img_mean}
-    std: ${img_std}
+    mean: ${data.img_mean}
+    std: ${data.img_std}
     max_pixel_value: 255.0
     p: 1.0
 
 valid_aug:
   PadIfNeeded:
-    min_height: ${img_size}
-    min_width: ${img_size}
-    # min_height: ${pad_img_size}
-    # min_width: ${pad_img_size}
+  PadIfNeeded:
+    min_height: ${data.pad_img_size}
+    min_width: ${data.pad_img_size}
     border_mode: 3
     p: 1.0
   Resize:
-    height: ${img_size}
-    width: ${img_size}
+    height: ${data.img_size}
+    width: ${data.img_size}
   Normalize:
-    mean: ${img_mean}
-    std: ${img_std}
+    mean: ${data.img_mean}
+    std: ${data.img_std}
     max_pixel_value: 255.0
     p: 1.0
 
 tta_aug:
   PadIfNeeded:
-    min_height: ${img_size}
-    min_width: ${img_size}
-    # min_height: ${pad_img_size}
-    # min_width: ${pad_img_size}
+    min_height: ${data.pad_img_size}
+    min_width: ${data.pad_img_size}
     border_mode: 3
     p: 1.0
   Resize:
-    height: ${img_size}
-    width: ${img_size}
+    height: ${data.img_size}
+    width: ${data.img_size}
   RandomResizedCrop:
-    height: ${img_size}
-    width: ${img_size}
+    height: ${data.img_size}
+    width: ${data.img_size}
     scale: [0.3, 1.0]
     p: 1.0
   HorizontalFlip: 
@@ -73,7 +68,7 @@ tta_aug:
   VerticalFlip: 
     p: 0.5
   Normalize:
-    mean: ${img_mean}
-    std: ${img_std}
+    mean: ${data.img_mean}
+    std: ${data.img_std}
     max_pixel_value: 255.0
     p: 1.0
