@@ -3,12 +3,11 @@ data_path: /content/drive/MyDrive/kaggle_PetFinder/data
 wandb_project: kaggle_PF_pre
 
 seed: 77
-epoch: 10
+train_bs: 16
+valid_bs: 16
 fold_num: 5
 use_fold: 0
 model_arch: tf_efficientnet_b0
-train_bs: 16
-valid_bs: 16
 num_workers: 2
 device: cuda:0
 

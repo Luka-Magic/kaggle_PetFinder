@@ -97,7 +97,7 @@ class pf_model(nn.Module):
         return x
 
 
-def prepare_dataloader(cfg, train_df, train_index, valid_index):
+def prepare_dataloader(data_cfg, train_df, train_index, valid_index):
 
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
@@ -250,17 +250,19 @@ def main(cfg: DictConfig):
 
         scaler = GradScaler()
 
-        if cfg.optimizer == 'AdamW':
-            optim = torch.optim.AdamW(
-                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
+        train_cfg = cfg.train
 
-        if cfg.scheduler == 'OneCycleLR':
+        if train_cfg.optimizer == 'AdamW':
+            optim = torch.optim.AdamW(
+                model.parameters(), lr=train_cfg.lr, betas=(train_cfg.beta1, train_cfg.beta2), weight_decay=train_cfg.weight_decay)
+
+        if train_cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=cfg.epoch, max_lr=cfg.lr)
+                optim, total_steps=train_cfg.epoch, max_lr=train_cfg.lr)
 
         loss_fn = nn.MSELoss()
 
-        for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
+        for epoch in tqdm(range(train_cfg.epoch), total=train_cfg.epoch):
             train_score_epoch, train_loss_epoch, lr = train_one_epoch(
                 epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
             print(f'TRAIN | epoch: {epoch}, score: {train_score_epoch}')
