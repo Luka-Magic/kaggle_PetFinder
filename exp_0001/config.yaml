@@ -38,8 +38,8 @@ train_aug:
 
 valid_aug:
   PadIfNeeded:
-    min_height: ${img_size * 3}
-    min_width: ${img_size * 3}
+    min_height: ${img_size}
+    min_width: ${img_size}
     border_mode: 3
     p: 1.0
   Resize:
@@ -53,8 +53,8 @@ valid_aug:
 
 tta_aug:
   PadIfNeeded:
-    min_height: ${img_size * 3}
-    min_width: ${img_size * 3}
+    min_height: ${img_size}
+    min_width: ${img_size}
     border_mode: 3
     p: 1.0
   Resize:
