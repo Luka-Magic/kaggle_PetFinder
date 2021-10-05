@@ -71,13 +71,14 @@ class pf_dataset(Dataset):
 
         return img
 
+
 def get_transforms(cfg, phase):
     if phase == 'train':
-        aug = cfg.aug.train_aug
+        aug = cfg.train_aug
     elif phase == 'valid':
-        aug = cfg.aug.valid_aug
+        aug = cfg.valid_aug
     elif phase == 'tta':
-        aug = cfg.aug.tta_aug
+        aug = cfg.tta_aug
 
     augs = [getattr(albumentations, name)(**kwargs)
             for name, kwargs in aug.items()]
@@ -240,7 +241,7 @@ def main(cfg: DictConfig):
 
         wandb.init(project='kaggle_PF_pre', entity='luka-magic',
                    name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
-        
+
         train_cfg = cfg.train
         data_cfg = cfg.data
 
@@ -252,7 +253,6 @@ def main(cfg: DictConfig):
         model = pf_model(cfg.model_arch, pretrained=True).to(device)
 
         scaler = GradScaler()
-
 
         if train_cfg.optimizer == 'AdamW':
             optim = torch.optim.AdamW(
