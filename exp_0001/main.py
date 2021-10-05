@@ -71,54 +71,6 @@ class pf_dataset(Dataset):
 
         return img
 
-
-# def get_train_transforms(cfg):
-#     return Compose([
-#         PadIfNeeded(min_height=cfg.img_size*3,
-#                     min_width=cfg.img_size*3, border_mode=3),
-#         Resize(cfg.img_size, cfg.img_size),
-#         RandomResizedCrop(cfg.img_size, cfg.img_size, scale=(0.5, 1.0)),
-#         HorizontalFlip(p=0.5),
-#         # VerticalFlip(p=0.5),
-#         # ShiftScaleRotate(shift_limit=(-0.1, 0.1), scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
-#         # # RandomGridShuffle(grid=(3, 3)),
-#         # Cutout(num_holes=8, max_h_size=30, max_w_size=30),
-#         Normalize(max_pixel_value=255., p=1.0),
-#         ToTensorV2()
-#     ])
-
-
-# def get_valid_transforms(cfg):
-#     return Compose([
-#         PadIfNeeded(min_height=cfg.img_size*3,
-#                     min_width=cfg.img_size*3, border_mode=3),
-#         Resize(cfg.img_size, cfg.img_size),
-#         Normalize(max_pixel_value=255., p=1.0),
-#         ToTensorV2()
-#     ])
-
-
-# def get_test_transforms(cfg):
-#     return Compose([
-#         PadIfNeeded(min_height=cfg.img_size*3,
-#                     min_width=cfg.img_size*3, border_mode=3),
-#         Resize(cfg.img_size, cfg.img_size),
-#         Normalize(max_pixel_value=255., p=1.0),
-#         ToTensorV2()
-#     ])
-
-
-# def get_tta_transforms(cfg):
-#     return Compose([
-#         RandomResizedCrop(cfg.img_size, cfg.img_size,
-#                           scale=(1., 1.), ratio=(1., 1.)),
-#         HorizontalFlip(p=0.5),
-#         VerticalFlip(p=0.5),
-#         ShiftScaleRotate(shift_limit=(-0.1, 0.1),
-#                          scale_limit=(-0.1, 0.1), rotate_limit=(-5, 5)),
-#         ToTensorV2()
-#     ])
-
 def get_transforms(cfg, phase):
     if phase == 'train':
         aug = cfg.train_aug
