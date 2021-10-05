@@ -240,6 +240,7 @@ def main(cfg: DictConfig):
 
         wandb.init(project='kaggle_PF_pre', entity='luka-magic',
                    name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
+        
         train_cfg = cfg.train
         data_cfg = cfg.data
 
