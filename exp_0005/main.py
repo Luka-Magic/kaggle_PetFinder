@@ -208,13 +208,17 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             preds = model(imgs)
 
         loss = loss_fn(preds, labels)
-        
+
         if cfg.loss == 'BCEWithLogitsLoss':
-            preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
-            labels_all += [labels.detach().cpu().numpy() * 100]
+            preds = np.clip(torch.sigmoid(
+                preds).detach().cpu().numpy() * 100, 0, 100)
+            labels = labels.detach().cpu().numpy() * 100
         elif cfg.loss == 'MSELoss':
-            preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
-            labels_all += [labels.detach().cpu().numpy()]
+            preds = np.clip(preds.detach().cpu().numpy(), 0, 100)
+            labels = labels.detach().cpu().numpy()
+            
+        preds_all += [preds]
+        labels_all += [labels]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
