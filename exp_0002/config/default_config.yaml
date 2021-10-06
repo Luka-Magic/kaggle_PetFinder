@@ -1,0 +1,15 @@
+nb_num: 2
+data_path: /content/drive/MyDrive/kaggle_PetFinder/data
+wandb_project: kaggle_PF
+
+seed: 77
+
+fold_num: 5
+use_fold: [0]
+model_arch: tf_efficientnet_b0
+device: cuda:0
+
+defaults:
+  - data: data
+  - train: train
+

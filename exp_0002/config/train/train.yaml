@@ -1,0 +1,9 @@
+# @package _group_
+epoch: 10
+model_selection: KFold
+optimizer: AdamW
+lr: 1e-3
+weight_decay: 1e-4
+beta1: 0.5
+beta2: 0.999
+scheduler: OneCycleLR
