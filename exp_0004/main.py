@@ -267,7 +267,7 @@ def main(cfg: DictConfig):
 
         if train_cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=train_cfg.epoch, max_lr=train_cfg.lr)
+                optim, total_steps=train_cfg.epoch, max_lr=train_cfg.lr, pct_start=train_cfg.pct_start, div_factor=train_cfg.div_factor, final_div_factor=train_cfg.final_div_factor)
 
         if train_cfg.loss == 'MSELoss':
             loss_fn = nn.MSELoss()
