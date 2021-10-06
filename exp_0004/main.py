@@ -16,7 +16,7 @@ import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 import hydra
 from omegaconf import DictConfig
 import warnings
@@ -133,7 +133,7 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
     return train_loader, valid_loader, valid_tta_loader
 
 
-def train_one_epoch(epoch, model, loss_fn, optimizer, data_loader, device, scheduler, scaler):
+def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, scheduler, scaler):
 
     def get_lr(optimizer):
         for param_group in optimizer.param_groups:
@@ -150,6 +150,9 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, data_loader, device, sched
         imgs = imgs.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
+        if cfg.loss == 'BCEWithLogitsLoss':
+            labels /= 100
+
         with autocast():
             preds = model(imgs)
             loss = loss_fn(preds, labels)
@@ -158,13 +161,15 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, data_loader, device, sched
         scaler.update()
         optimizer.zero_grad()
 
+        if cfg.loss == 'BCEWithLogitsLoss':
+            preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
+            labels_all += [labels.detach().cpu().numpy() * 100]
+
         preds_all += [preds.detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
-
-        preds_temp = np.clip(preds_temp, 0, 100)
 
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
@@ -178,14 +183,12 @@ def train_one_epoch(epoch, model, loss_fn, optimizer, data_loader, device, sched
     preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
 
-    preds_epoch = np.clip(preds_temp, 0, 100)
-
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
     return score_epoch, loss.detach().cpu().numpy(), lr
 
 
-def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
+def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     model.eval()
 
@@ -197,18 +200,24 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
     for step, (imgs, labels) in pbar:
         imgs = imgs.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
+
+        if cfg.loss == 'BCEWithLogitsLoss':
+            labels /= 100
+
         with autocast():
             preds = model(imgs)
 
         loss = loss_fn(preds, labels)
+
+        if cfg.loss == 'BCEWithLogitsLoss':
+            preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
+            labels_all += [labels.detach().cpu().numpy() * 100]
 
         preds_all += [preds.detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
-
-        preds_temp = np.clip(preds_temp, 0, 100)
 
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
@@ -217,8 +226,6 @@ def valid_one_epoch(epoch, model, loss_fn, data_loader, device):
 
     preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
-
-    preds_epoch = np.clip(preds_temp, 0, 100)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
@@ -262,7 +269,10 @@ def main(cfg: DictConfig):
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optim, total_steps=train_cfg.epoch, max_lr=train_cfg.lr)
 
-        loss_fn = nn.MSELoss()
+        if train_cfg.loss == 'MSELoss':
+            loss_fn = nn.MSELoss()
+        elif train_cfg.loss == 'BCEWithLogitsLoss':
+            loss_fn = nn.BCEWithLogitsLoss()
 
         for epoch in tqdm(range(train_cfg.epoch), total=train_cfg.epoch):
             # Train Start
@@ -270,7 +280,7 @@ def main(cfg: DictConfig):
             train_start_time = time.time()
 
             train_score_epoch, train_loss_epoch, lr = train_one_epoch(
-                epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                train_cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
 
             train_finish_time = time.time()
 
@@ -283,7 +293,7 @@ def main(cfg: DictConfig):
 
             with torch.no_grad():
                 valid_score_epoch, valid_loss_epoch = valid_one_epoch(
-                    epoch, model, loss_fn, valid_loader, device)
+                    train_cfg, epoch, model, loss_fn, valid_loader, device)
 
             valid_finish_time = time.time()
 
