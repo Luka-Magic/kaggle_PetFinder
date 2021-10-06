@@ -12,4 +12,3 @@ device: cuda:0
 defaults:
   - data: data
   - train: train
-

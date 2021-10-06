@@ -295,7 +295,7 @@ def main(cfg: DictConfig):
             train_finish_time = time.time()
 
             print(
-                f'TRAIN | epoch: {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
+                f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
 
             # Valid Start
 
@@ -310,7 +310,7 @@ def main(cfg: DictConfig):
             valid_rmse[epoch] = valid_score_epoch
 
             print(
-                f'VALID | epoch: {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
 
             wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
@@ -318,9 +318,8 @@ def main(cfg: DictConfig):
 
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
 
-        wandb.log(
-            {'min_rmse': valid_rmse_sorted[0][1], 'min_rmse_epoch': valid_rmse_sorted[0][0]})
-
+        for i, (epoch, rmse) in enumerate(valid_rmse_sorted.items()):
+            print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
 
 if __name__ == '__main__':
     main()
