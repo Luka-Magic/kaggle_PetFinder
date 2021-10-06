@@ -164,9 +164,9 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         if cfg.loss == 'BCEWithLogitsLoss':
             preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
             labels_all += [labels.detach().cpu().numpy() * 100]
-
-        preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
-        labels_all += [labels.detach().cpu().numpy()]
+        elif cfg.loss == 'MSELoss':
+            preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
+            labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
@@ -208,13 +208,13 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             preds = model(imgs)
 
         loss = loss_fn(preds, labels)
-
+        
         if cfg.loss == 'BCEWithLogitsLoss':
             preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
             labels_all += [labels.detach().cpu().numpy() * 100]
-
-        preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
-        labels_all += [labels.detach().cpu().numpy()]
+        elif cfg.loss == 'MSELoss':
+            preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
+            labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
