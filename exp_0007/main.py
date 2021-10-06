@@ -318,8 +318,8 @@ def main(cfg: DictConfig):
 
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
 
-        wandb.log(
-            {'min_rmse': valid_rmse_sorted[0][1], 'min_rmse_epoch': valid_rmse_sorted[0][0]})
+        for i, (epoch, rmse) in enumerate(valid_rmse_sorted.items()):
+            print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
 
 
 if __name__ == '__main__':
