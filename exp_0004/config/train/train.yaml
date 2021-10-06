@@ -9,5 +9,5 @@ beta1: 0.5
 beta2: 0.999
 scheduler: OneCycleLR
 pct_start: 0.1
-div_factor: 10.
+div_factor: 25.
 final_div_factor: 10000.
