@@ -10,14 +10,19 @@ valid_bs: 16
 num_workers: 2
 
 train_aug:
-  PadIfNeeded:
-    min_height: ${data.pad_img_size}
-    min_width: ${data.pad_img_size}
-    border_mode: 3
-    p: 1.0
+  # PadIfNeeded:
+  #   min_height: ${data.pad_img_size}
+  #   min_width: ${data.pad_img_size}
+  #   border_mode: 3
+  #   p: 1.0
   Resize:
     height: ${data.img_size}
     width: ${data.img_size}
+  Normalize:
+    mean: ${data.img_mean}
+    std: ${data.img_std}
+    max_pixel_value: 255.0
+    p: 1.0
   RandomResizedCrop:
     height: ${data.img_size}
     width: ${data.img_size}
@@ -27,18 +32,14 @@ train_aug:
     p: 0.5
   VerticalFlip: 
     p: 0.5
-  Normalize:
-    mean: ${data.img_mean}
-    std: ${data.img_std}
-    max_pixel_value: 255.0
-    p: 1.0
+
 
 valid_aug:
-  PadIfNeeded:
-    min_height: ${data.pad_img_size}
-    min_width: ${data.pad_img_size}
-    border_mode: 3
-    p: 1.0
+  # PadIfNeeded:
+  #   min_height: ${data.pad_img_size}
+  #   min_width: ${data.pad_img_size}
+  #   border_mode: 3
+  #   p: 1.0
   Resize:
     height: ${data.img_size}
     width: ${data.img_size}
@@ -49,10 +50,15 @@ valid_aug:
     p: 1.0
 
 tta_aug:
-  PadIfNeeded:
-    min_height: ${data.pad_img_size}
-    min_width: ${data.pad_img_size}
-    border_mode: 3
+  # PadIfNeeded:
+  #   min_height: ${data.pad_img_size}
+  #   min_width: ${data.pad_img_size}
+  #   border_mode: 3
+  #   p: 1.0
+  Normalize:
+    mean: ${data.img_mean}
+    std: ${data.img_std}
+    max_pixel_value: 255.0
     p: 1.0
   Resize:
     height: ${data.img_size}
@@ -66,8 +72,3 @@ tta_aug:
     p: 0.5
   VerticalFlip: 
     p: 0.5
-  Normalize:
-    mean: ${data.img_mean}
-    std: ${data.img_std}
-    max_pixel_value: 255.0
-    p: 1.0
