@@ -245,6 +245,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 @hydra.main(config_path='config', config_name='default_config')
 def main(cfg: DictConfig):
     wandb.login()
+    print(os.getcwd())
     seed_everything(cfg.seed)
 
     train_df, _ = load_data(cfg.data_path)
