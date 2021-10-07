@@ -85,6 +85,7 @@ def get_transforms(cfg, phase):
     augs.append(ToTensorV2(p=1.))
     return albumentations.Compose(augs)
 
+
 class pf_model(nn.Module):
     def __init__(self, model_arch, pretrained=True):
         super().__init__()
@@ -259,7 +260,7 @@ def main(cfg: DictConfig):
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
 
     wandb.init(project=cfg.wandb_project, entity='luka-magic',
-               name='exp_' + str(cfg.nb_num).zfill(4), config=cfg)
+               name=os.path.basename(os.getcwd()), config=cfg)
 
     for fold, (train_index, valid_index) in enumerate(folds):
         if fold not in cfg.use_fold:
