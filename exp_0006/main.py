@@ -87,9 +87,10 @@ def get_transforms(cfg, phase):
 
 
 class pf_model(nn.Module):
-    def __init__(self, model_arch, pretrained=False):
+    def __init__(self, model_arch, pretrained=True):
         super().__init__()
-        self.model = timm.create_model(model_arch, in_chans=3)
+        self.model = timm.create_model(
+            model_arch, pretrained=pretrained, in_chans=3)
         self.n_features = self.model.classifier.in_features
         self.model.classifier = nn.Linear(self.n_features, 1)
 

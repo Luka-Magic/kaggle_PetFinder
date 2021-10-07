@@ -85,7 +85,6 @@ def get_transforms(cfg, phase):
     augs.append(ToTensorV2(p=1.))
     return albumentations.Compose(augs)
 
-
 class pf_model(nn.Module):
     def __init__(self, model_arch, pretrained=True):
         super().__init__()
