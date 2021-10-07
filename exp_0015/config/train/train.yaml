@@ -1,0 +1,12 @@
+epoch: 30
+fold: StratifiedKFold
+optimizer: AdamW
+lr: 1e-4
+loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss
+weight_decay: 1e-6
+beta1: 0.5
+beta2: 0.999
+scheduler: OneCycleLR
+pct_start: 0.3
+div_factor: 25.
+final_div_factor: 1000.
