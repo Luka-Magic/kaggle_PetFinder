@@ -316,11 +316,6 @@ def main(cfg: DictConfig):
                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
                        'epoch': epoch, 'lr': lr})
 
-        valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
-
-        for i, (epoch, rmse) in enumerate(valid_rmse_sorted.items()):
-            print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
-
 
 if __name__ == '__main__':
     main()
