@@ -245,7 +245,6 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 @hydra.main(config_path='config', config_name='default_config')
 def main(cfg: DictConfig):
     wandb.login()
-    print(os.getcwd().split('/')[-4])
     seed_everything(cfg.seed)
 
     train_df, _ = load_data(cfg.data_path)
@@ -261,7 +260,7 @@ def main(cfg: DictConfig):
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
 
     wandb.init(project=cfg.wandb_project, entity='luka-magic',
-               name=os.path.basename(os.getcwd()), config=cfg)
+               name=os.getcwd().split('/')[-4], config=cfg)
 
     for fold, (train_index, valid_index) in enumerate(folds):
         if fold not in cfg.use_fold:
