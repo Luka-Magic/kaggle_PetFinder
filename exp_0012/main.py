@@ -89,15 +89,15 @@ def get_transforms(cfg, phase):
 class pf_model(nn.Module):
     def __init__(self, model_arch, pretrained=True):
         super().__init__()
-
-        # self.model = timm.create_model(model_arch, in_chans=3)
-        # self.n_features = self.model.classifier.in_features
-        # self.model.classifier = nn.Linear(self.n_features, 1)
-
         self.model = timm.create_model(
             model_arch, pretrained=pretrained, in_chans=3)
-        n_features = self.model.head.in_features
-        self.model.head = nn.Linear(n_features, 1)
+        
+        if model_arch == 'vit_large_patch32_384':
+            n_features = self.model.head.in_features
+            self.model.head = nn.Linear(n_features, 1)
+        elif model_arch == 'tf_efficientnet_b0':
+            self.n_features = self.model.classifier.in_features
+            self.model.classifier = nn.Linear(self.n_features, 1)
 
     def forward(self, x):
         x = self.model(x)
@@ -301,7 +301,7 @@ def main(cfg: DictConfig):
             train_finish_time = time.time()
 
             print(
-                f'TRAIN | epoch: {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
+                f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
 
             # Valid Start
 
@@ -316,7 +316,7 @@ def main(cfg: DictConfig):
             valid_rmse[epoch] = valid_score_epoch
 
             print(
-                f'VALID | epoch: {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
 
             wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
