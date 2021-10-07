@@ -95,29 +95,30 @@ class pf_model(nn.Module):
         super().__init__()
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
-        
+
         if cfg.model_arch == 'vit_large_patch32_384':
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, 128)
         elif cfg.model_arch == 'tf_efficientnet_b0':
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(self.n_features, 128)
-        
+
         self.fc = nn.Sequential(
             nn.Dropout(0.2),
-            nn.Linear(128 +  len(cfg.data.dense_columns), 128),
+            nn.Linear(128 + len(cfg.data.dense_columns), 128),
             nn.ReLU(),
             nn.Dropout(0.2),
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 1)
         )
-        
+
     def forward(self, x, dense):
         x = self.model(x)
         x = torch.cat([x, dense], dim=1)
         x = self.fc(x)
         return x
+
 
 def prepare_dataloader(cfg, train_df, train_index, valid_index):
 
@@ -126,7 +127,8 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
 
     train_ds = pf_dataset(cfg, train_, transforms=get_transforms(cfg, 'train'))
     valid_ds = pf_dataset(cfg, valid_, transforms=get_transforms(cfg, 'valid'))
-    valid_tta_ds = pf_dataset(cfg, valid_, transforms=get_transforms(cfg, 'tta'))
+    valid_tta_ds = pf_dataset(
+        cfg, valid_, transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
@@ -167,15 +169,16 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     preds_all = []
     labels_all = []
 
-    for step, (imgs, labels) in pbar:
+    for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss':
             labels /= 100
 
         with autocast():
-            preds = model(imgs)
+            preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -218,28 +221,25 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     preds_all = []
     labels_all = []
 
-    for step, (imgs, labels) in pbar:
+    for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss':
             labels /= 100
 
         with autocast():
-            preds = model(imgs)
+            preds = model(imgs, dense)
 
         loss = loss_fn(preds, labels)
 
         if cfg.loss == 'BCEWithLogitsLoss':
-            preds = np.clip(torch.sigmoid(
-                preds).detach().cpu().numpy() * 100, 0, 100)
-            labels = labels.detach().cpu().numpy() * 100
+            preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
+            labels_all += [labels.detach().cpu().numpy() * 100]
         elif cfg.loss == 'MSELoss':
-            preds = np.clip(preds.detach().cpu().numpy(), 0, 100)
-            labels = labels.detach().cpu().numpy()
-
-        preds_all += [preds]
-        labels_all += [labels]
+            preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
+            labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
@@ -336,13 +336,14 @@ def main(cfg: DictConfig):
             wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
                        'epoch': epoch, 'lr': lr})
-        
+
         # print Score
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
         print('-'*30)
         for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
             print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
         print('-'*30)
+
 
 if __name__ == '__main__':
     main()
