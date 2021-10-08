@@ -4,8 +4,8 @@ img_std: [0.229, 0.224, 0.225]
 img_size: 384
 pad_img_size: 800
 
-train_bs: 64
-valid_bs: 64
+train_bs: 32
+valid_bs: 32
 num_workers: 2
 
 train_aug:
