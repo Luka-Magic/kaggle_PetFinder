@@ -333,5 +333,7 @@ def main(cfg: DictConfig):
             print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
         print('-'*30)
 
+        del model, optim, scheduler, loss_fn, valid_rmse, valid_rmse_sorted, train_loader, valid_loader, _
+
 if __name__ == '__main__':
     main()
