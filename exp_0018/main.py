@@ -259,12 +259,16 @@ def main(cfg: DictConfig):
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
 
-    wandb.init(project=cfg.wandb_project, entity='luka-magic',
-               name=os.getcwd().split('/')[-4], config=cfg)
-
     for fold, (train_index, valid_index) in enumerate(folds):
         if fold not in cfg.use_fold:
             continue
+
+        if len(cfg.use_fold) == 1:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4], config=cfg)
+        else:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
         valid_rmse = {}
 
@@ -328,6 +332,8 @@ def main(cfg: DictConfig):
         for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
             print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
         print('-'*30)
+
+        del model, optim, scheduler, loss_fn, valid_rmse, valid_rmse_sorted, train_loader, valid_loader, _
 
 
 if __name__ == '__main__':

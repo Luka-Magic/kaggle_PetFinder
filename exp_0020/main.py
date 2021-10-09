@@ -43,11 +43,12 @@ def seed_everything(seed):
 
 
 class pf_dataset(Dataset):
-    def __init__(self, df, transforms=None, output_label=True):
+    def __init__(self, cfg, df, transforms=None, output_label=True):
         super().__init__()
         self.df = df
         self.transforms = transforms
         self.output_label = output_label
+        self.dense_columns = cfg.dense_columns
 
     def __len__(self):
         return self.df.shape[0]
@@ -65,11 +66,14 @@ class pf_dataset(Dataset):
             img = img_rgb.transpose(2, 0, 1) / 256.
             img = torch.from_numpy(img).float()
 
+        dense = torch.from_numpy(
+            self.df.loc[index, self.dense_columns].values.astype('float'))
+
         if self.output_label:
             target = self.df.iloc[index]['Pawpularity']
-            return img, target
+            return img, dense, target
 
-        return img
+        return img, dense
 
 
 def get_transforms(cfg, phase):
@@ -87,20 +91,32 @@ def get_transforms(cfg, phase):
 
 
 class pf_model(nn.Module):
-    def __init__(self, model_arch, pretrained=True):
+    def __init__(self, cfg, pretrained=False):
         super().__init__()
         self.model = timm.create_model(
-            model_arch, pretrained=pretrained, in_chans=3)
+            cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if model_arch == 'vit_large_patch32_384':
+        if cfg.model_arch == 'vit_large_patch32_384':
             n_features = self.model.head.in_features
-            self.model.head = nn.Linear(n_features, 1)
-        elif model_arch == 'tf_efficientnet_b0':
+            self.model.head = nn.Linear(n_features, 128)
+        elif cfg.model_arch == 'tf_efficientnet_b0':
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(self.n_features, 1)
+            self.model.classifier = nn.Linear(self.n_features, 128)
 
-    def forward(self, x):
+        self.fc = nn.Sequential(
+            nn.Dropout(0.2),
+            nn.Linear(128 + len(cfg.data.dense_columns), 128),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
+        )
+
+    def forward(self, x, dense):
         x = self.model(x)
+        x = torch.cat([x, dense], dim=1)
+        x = self.fc(x)
         return x
 
 
@@ -109,9 +125,10 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
 
-    train_ds = pf_dataset(train_, transforms=get_transforms(cfg, 'train'))
-    valid_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'valid'))
-    valid_tta_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'tta'))
+    train_ds = pf_dataset(cfg, train_, transforms=get_transforms(cfg, 'train'))
+    valid_ds = pf_dataset(cfg, valid_, transforms=get_transforms(cfg, 'valid'))
+    valid_tta_ds = pf_dataset(
+        cfg, valid_, transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
@@ -152,15 +169,16 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     preds_all = []
     labels_all = []
 
-    for step, (imgs, labels) in pbar:
+    for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss':
             labels /= 100
 
         with autocast():
-            preds = model(imgs)
+            preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -203,15 +221,16 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     preds_all = []
     labels_all = []
 
-    for step, (imgs, labels) in pbar:
+    for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss':
             labels /= 100
 
         with autocast():
-            preds = model(imgs)
+            preds = model(imgs, dense)
 
         loss = loss_fn(preds, labels)
 
@@ -259,12 +278,16 @@ def main(cfg: DictConfig):
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
 
-    wandb.init(project=cfg.wandb_project, entity='luka-magic',
-               name=os.getcwd().split('/')[-4], config=cfg)
-
     for fold, (train_index, valid_index) in enumerate(folds):
         if fold not in cfg.use_fold:
             continue
+
+        if len(cfg.use_fold) == 1:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4], config=cfg)
+        else:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
         valid_rmse = {}
 
@@ -273,7 +296,7 @@ def main(cfg: DictConfig):
 
         device = torch.device(cfg.device)
 
-        model = pf_model(cfg.model_arch, pretrained=True).to(device)
+        model = pf_model(cfg, pretrained=True).to(device)
 
         scaler = GradScaler()
 
@@ -328,6 +351,8 @@ def main(cfg: DictConfig):
         for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
             print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
         print('-'*30)
+
+        del model, optim, scheduler, loss_fn, valid_rmse, valid_rmse_sorted, train_loader, valid_loader, _
 
 
 if __name__ == '__main__':

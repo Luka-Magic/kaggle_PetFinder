@@ -1,0 +1,14 @@
+data_path: /content/drive/MyDrive/kaggle_PetFinder/data
+wandb_project: kaggle_PF
+
+seed: 77
+
+fold_num: 5
+use_fold: [0]
+model_arch: swin_base_patch4_window12_384_in22k 
+device: cuda:0
+
+defaults:
+  - data: data
+  - train: train
+
