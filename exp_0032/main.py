@@ -82,7 +82,6 @@ class pf_dataset(Dataset):
 
         return img
 
-
 def get_transforms(cfg, phase):
     if phase == 'train':
         aug = cfg.train_aug
@@ -95,6 +94,51 @@ def get_transforms(cfg, phase):
             for name, kwargs in aug.items()]
     augs.append(ToTensorV2(p=1.))
     return albumentations.Compose(augs)
+
+
+def rand_bbox(size, l):
+    W = size[-2]
+    H = size[-1]
+    cut_rat = np.sqrt(1.0 - l)
+    cut_W = np.int(W * cut_rat)
+    cut_H = np.int(H * cut_rat)
+
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+
+    bbx1 = np.clip(cx - cut_W // 2, 0, W)
+    bbx2 = np.clip(cx + cut_W // 2, 0, W)
+    bby1 = np.clip(cy - cut_H // 2, 0, H)
+    bby2 = np.clip(cy + cut_H // 2, 0, H)
+    return bbx1, bby1, bbx2, bby2
+
+
+def mixup(data, target, alpha):
+    indices = torch.randperm(data.size(0))
+    shuffled_data = data[indices]
+    shuffled_target = target[indices]
+    new_data = data.clone()
+
+    l = np.clip(np.random.beta(alpha, alpha), 0.4, 0.6)
+    new_data = new_data * l + data[indices, :, :, :] * (1 - l)
+    targets = (target, shuffled_target, l)
+    return new_data, targets
+
+
+def cutmix(data, target, alpha):
+    indices = torch.randperm(data.size(0))
+    shuffled_data = data[indices]
+    shuffled_target = target[indices]
+    new_data = data.clone()
+
+    l = np.clip(np.random.beta(alpha, alpha), 0.3, 0.4)
+    bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), l)
+    new_data[:, :, bby1:bby2, bbx1:bbx2] = data[indices, :, bby1:bby2, bbx1:bbx2]
+    l = 1 - (((bbx2 - bbx1) * (bby2 - bby1)) /
+             (data.size()[-1] * data.size()[-2]))
+    targets = (target, shuffled_target, l)
+
+    return new_data, targets
 
 
 class pf_model(nn.Module):
@@ -120,9 +164,10 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
 
-    train_ds = pf_dataset(train_, transforms=get_transforms(cfg, 'train'))
-    valid_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'valid'))
-    valid_tta_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'tta'))
+    train_ds = pf_dataset(cfg, train_, transforms=get_transforms(cfg, 'train'))
+    valid_ds = pf_dataset(cfg, valid_, transforms=get_transforms(cfg, 'valid'))
+    valid_tta_ds = pf_dataset(
+        cfg, valid_, transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
@@ -171,8 +216,15 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
             labels /= 100
 
         with autocast():
-            preds = model(imgs)
-            loss = loss_fn(preds, labels)
+            mix_p = np.random.rand()
+            if mix_p < cfg.mix_p:
+                imgs, labels = mixup(imgs, labels, 1.)
+                preds = model(imgs)
+                loss = loss_fn(
+                    preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
+            else:
+                preds = model(imgs)
+                loss = loss_fn(preds, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -252,20 +304,17 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     return score_epoch, loss.detach().cpu().numpy()
 
 
-@hydra.main(config_path='config', config_name='default_config')
+@hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
     train_df, _ = load_data(cfg.data_path)
 
-    train_cfg = cfg.train
-    data_cfg = cfg.data
-
-    if train_cfg.fold == 'KFold':
+    if cfg.fold == 'KFold':
         folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    elif train_cfg.fold == 'StratifiedKFold':
+    elif cfg.fold == 'StratifiedKFold':
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
 
@@ -283,7 +332,7 @@ def main(cfg: DictConfig):
         valid_rmse = {}
 
         train_loader, valid_loader, _ = prepare_dataloader(
-            data_cfg, train_df, train_index, valid_index)
+            cfg, train_df, train_index, valid_index)
 
         device = torch.device(cfg.device)
 
@@ -291,29 +340,29 @@ def main(cfg: DictConfig):
 
         scaler = GradScaler()
 
-        if train_cfg.optimizer == 'AdamW':
+        if cfg.optimizer == 'AdamW':
             optim = torch.optim.AdamW(
-                model.parameters(), lr=train_cfg.lr, betas=(train_cfg.beta1, train_cfg.beta2), weight_decay=train_cfg.weight_decay)
+                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
 
-        if train_cfg.scheduler == 'OneCycleLR':
+        if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=train_cfg.epoch, max_lr=train_cfg.lr, pct_start=train_cfg.pct_start, div_factor=train_cfg.div_factor, final_div_factor=train_cfg.final_div_factor)
-        elif train_cfg.scheduler == 'CosineAnnealingWarmRestarts':
+                optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
+        elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optim, T_0=train_cfg.T_0, T_mult=train_cfg.T_mult, eta_min=train_cfg.eta_min)
+                optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
-        if train_cfg.loss == 'MSELoss':
+        if cfg.loss == 'MSELoss':
             loss_fn = nn.MSELoss()
-        elif train_cfg.loss == 'BCEWithLogitsLoss':
+        elif cfg.loss == 'BCEWithLogitsLoss':
             loss_fn = nn.BCEWithLogitsLoss()
 
-        for epoch in tqdm(range(train_cfg.epoch), total=train_cfg.epoch):
+        for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
 
             train_start_time = time.time()
 
             train_score_epoch, train_loss_epoch, lr = train_one_epoch(
-                train_cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
 
             train_finish_time = time.time()
 
@@ -326,7 +375,7 @@ def main(cfg: DictConfig):
 
             with torch.no_grad():
                 valid_score_epoch, valid_loss_epoch = valid_one_epoch(
-                    train_cfg, epoch, model, loss_fn, valid_loader, device)
+                    cfg, epoch, model, loss_fn, valid_loader, device)
 
             valid_finish_time = time.time()
 

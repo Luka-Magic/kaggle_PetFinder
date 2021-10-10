@@ -44,8 +44,9 @@ def seed_everything(seed):
 
 
 class pf_dataset(Dataset):
-    def __init__(self, df, transforms=None, output_label=True):
+    def __init__(self, cfg, df, transforms=None, output_label=True):
         super().__init__()
+        self.cfg = cfg
         self.df = df
         self.transforms = transforms
         self.output_label = output_label
@@ -58,6 +59,15 @@ class pf_dataset(Dataset):
 
         img_bgr = cv2.imread(img_path)
         img_rgb = img_bgr[:, :, ::-1]
+
+        h, w, _ = img_rgb.shape
+        h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
+        if cfg.padding == 'BORDER_WRAP':
+            img_rgb = cv2.copyMakeBorder(
+                img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_WRAP)
+        elif cfg.padding == 'BORDER_CONSTANT':
+            img_rgb = cv2.copyMakeBorder(
+                img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_CONSTANT)
 
         if self.transforms:
             img = self.transforms(image=img_rgb)['image']
@@ -110,9 +120,10 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
 
-    train_ds = pf_dataset(train_, transforms=get_transforms(cfg, 'train'))
-    valid_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'valid'))
-    valid_tta_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'tta'))
+    train_ds = pf_dataset(cfg, train_, transforms=get_transforms(cfg, 'train'))
+    valid_ds = pf_dataset(cfg, valid_, transforms=get_transforms(cfg, 'valid'))
+    valid_tta_ds = pf_dataset(
+        cfg, valid_, transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
