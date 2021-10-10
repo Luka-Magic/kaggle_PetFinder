@@ -4,7 +4,7 @@ wandb_project: kaggle_PF
 seed: 77
 
 fold_num: 5
-use_fold: [1]
+use_fold: [0]
 model_arch: vit_large_patch32_384
 device: cuda:0
 

@@ -269,7 +269,7 @@ def main(cfg: DictConfig):
         else:
             wandb.init(project=cfg.wandb_project, entity='luka-magic',
                        name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
-        
+
         valid_rmse = {}
 
         train_loader, valid_loader, _ = prepare_dataloader(
@@ -306,7 +306,7 @@ def main(cfg: DictConfig):
 
             print(
                 f'TRAIN | epoch: {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
-            
+
             # Valid Start
 
             valid_start_time = time.time()
@@ -325,7 +325,7 @@ def main(cfg: DictConfig):
             wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
                        'epoch': epoch, 'lr': lr})
-        
+
         # print Score
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
         print('-'*30)
@@ -334,6 +334,7 @@ def main(cfg: DictConfig):
         print('-'*30)
 
         del model, optim, scheduler, loss_fn, valid_rmse, valid_rmse_sorted, train_loader, valid_loader, _
+
 
 if __name__ == '__main__':
     main()
