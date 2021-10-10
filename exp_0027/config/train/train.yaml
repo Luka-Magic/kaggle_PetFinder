@@ -1,0 +1,15 @@
+epoch: 10
+fold: StratifiedKFold
+optimizer: AdamW
+lr: 1e-5
+loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss
+weight_decay: 1e-6
+beta1: 0.5
+beta2: 0.999
+scheduler: CosineAnnealingWarmRestarts # OneCycleLR
+T_0: 5 # CAWR
+T_mult: 1 # CAWR
+eta_min: 1e-7 # CAWR
+pct_start: 0.3 # OCLR
+div_factor: 25. # OCLR
+final_div_factor: 1000. # OCLR
