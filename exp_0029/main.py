@@ -60,15 +60,6 @@ class pf_dataset(Dataset):
         img_bgr = cv2.imread(img_path)
         img_rgb = img_bgr[:, :, ::-1]
 
-        h, w, _ = img_rgb.shape
-        h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
-        if self.cfg.padding == 'BORDER_CONSTANT':
-            img_rgb = cv2.copyMakeBorder(
-                img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_CONSTANT)
-        elif self.cfg.padding == 'BORDER_WRAP':
-            img_rgb = cv2.copyMakeBorder(
-                img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_WRAP)
-
         if self.transforms:
             img = self.transforms(image=img_rgb)['image']
 
