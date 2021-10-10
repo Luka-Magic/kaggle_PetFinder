@@ -62,10 +62,10 @@ class pf_dataset(Dataset):
 
         h, w, _ = img_rgb.shape
         h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
-        if cfg.padding == 'BORDER_WRAP':
+        if self.cfg.padding == 'BORDER_WRAP':
             img_rgb = cv2.copyMakeBorder(
                 img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_WRAP)
-        elif cfg.padding == 'BORDER_CONSTANT':
+        elif self.cfg.padding == 'BORDER_CONSTANT':
             img_rgb = cv2.copyMakeBorder(
                 img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_CONSTANT)
 
