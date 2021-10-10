@@ -181,10 +181,9 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
 
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
         pbar.set_description(description)
+    lr = get_lr(optimizer)
     if scheduler:
         scheduler.step()
-
-    lr = get_lr(optimizer)
 
     preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
