@@ -82,6 +82,7 @@ class pf_dataset(Dataset):
 
         return img
 
+
 def get_transforms(cfg, phase):
     if phase == 'train':
         aug = cfg.train_aug

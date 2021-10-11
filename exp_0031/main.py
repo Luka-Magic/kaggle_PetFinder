@@ -120,9 +120,10 @@ def prepare_dataloader(cfg, train_df, train_index, valid_index):
     train_ = train_df.loc[train_index, :].reset_index(drop=True)
     valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
 
-    train_ds = pf_dataset(train_, transforms=get_transforms(cfg, 'train'))
-    valid_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'valid'))
-    valid_tta_ds = pf_dataset(valid_, transforms=get_transforms(cfg, 'tta'))
+    train_ds = pf_dataset(cfg, train_, transforms=get_transforms(cfg, 'train'))
+    valid_ds = pf_dataset(cfg, valid_, transforms=get_transforms(cfg, 'valid'))
+    valid_tta_ds = pf_dataset(
+        cfg, valid_, transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,

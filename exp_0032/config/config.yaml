@@ -4,7 +4,7 @@ wandb_project: kaggle_PF
 seed: 77
 epoch: 10
 fold: StratifiedKFold
-fold_num: 5
+fold_num: 10
 use_fold: [0]
 model_arch: vit_large_patch32_384
 device: cuda:0
@@ -14,16 +14,17 @@ loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 1e-6
+lr: 1e-5
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
 
 ##### Scheduler ########################################
 scheduler: CosineAnnealingWarmRestarts # OneCycleLR
-T_0: 5 # CAWR
+T_0: ${epoch} # CAWR
 T_mult: 1 # CAWR
-eta_min: 1e-8 # CAWR
+eta_min: 1e-9 # CAWR
+
 pct_start: 0.3 # OCLR
 div_factor: 25. # OCLR
 final_div_factor: 1000. # OCLR
@@ -34,8 +35,8 @@ img_std: [0.229, 0.224, 0.225]
 img_size: 384
 
 ##### DataLoader ########################################
-train_bs: 16
-valid_bs: 16
+train_bs: 32
+valid_bs: 32
 num_workers: 2
 
 ##### MixUp #############################################
