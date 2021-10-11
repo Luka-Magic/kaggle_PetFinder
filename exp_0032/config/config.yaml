@@ -47,16 +47,16 @@ padding: None
 
 train_aug:
   Resize:
-    height: ${data.img_size}
-    width: ${data.img_size}
+    height: ${img_size}
+    width: ${img_size}
   Normalize:
-    mean: ${data.img_mean}
-    std: ${data.img_std}
+    mean: ${img_mean}
+    std: ${img_std}
     max_pixel_value: 255.0
     p: 1.0
   # RandomResizedCrop:
-  #   height: ${data.img_size}
-  #   width: ${data.img_size}
+  #   height: ${img_size}
+  #   width: ${img_size}
   #   scale: [0.3, 1.0]
   #   p: 1.0
   HorizontalFlip: 
@@ -83,26 +83,26 @@ train_aug:
 
 valid_aug:
   Resize:
-    height: ${data.img_size}
-    width: ${data.img_size}
+    height: ${img_size}
+    width: ${img_size}
   Normalize:
-    mean: ${data.img_mean}
-    std: ${data.img_std}
+    mean: ${img_mean}
+    std: ${img_std}
     max_pixel_value: 255.0
     p: 1.0
 
 tta_aug:
   Normalize:
-    mean: ${data.img_mean}
-    std: ${data.img_std}
+    mean: ${img_mean}
+    std: ${img_std}
     max_pixel_value: 255.0
     p: 1.0
   Resize:
-    height: ${data.img_size}
-    width: ${data.img_size}
+    height: ${img_size}
+    width: ${img_size}
   RandomResizedCrop:
-    height: ${data.img_size}
-    width: ${data.img_size}
+    height: ${img_size}
+    width: ${img_size}
     scale: [0.3, 1.0]
     p: 1.0
   HorizontalFlip: 
