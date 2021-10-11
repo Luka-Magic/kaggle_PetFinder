@@ -396,7 +396,7 @@ def main(cfg: DictConfig):
 
             print(
                 f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-            if cfg.mix_p != 0:
+            if cfg.mix_p == 0:
                 wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
                            'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
                            'epoch': epoch, 'lr': lr})
