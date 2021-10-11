@@ -231,30 +231,37 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         scaler.update()
         optimizer.zero_grad()
 
-        if cfg.loss == 'BCEWithLogitsLoss':
-            preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
-            labels_all += [labels.detach().cpu().numpy() * 100]
-        elif cfg.loss == 'MSELoss':
-            preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
-            labels_all += [labels.detach().cpu().numpy()]
+        if mix_p != 0:
 
-        preds_temp = np.concatenate(preds_all)
-        labels_temp = np.concatenate(labels_all)
+            if cfg.loss == 'BCEWithLogitsLoss':
+                preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
+                labels_all += [labels.detach().cpu().numpy() * 100]
+            elif cfg.loss == 'MSELoss':
+                preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
+                labels_all += [labels.detach().cpu().numpy()]
 
-        score = mean_squared_error(labels_temp, preds_temp) ** 0.5
+            preds_temp = np.concatenate(preds_all)
+            labels_temp = np.concatenate(labels_all)
 
-        description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
-        pbar.set_description(description)
+            score = mean_squared_error(labels_temp, preds_temp) ** 0.5
+
+            description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
+            pbar.set_description(description)
+        else:
+            description = f'epoch: {epoch}, mixup'
+            pbar.set_description(description)
     lr = get_lr(optimizer)
     if scheduler:
         scheduler.step()
+    if mix_p != 0:
+        preds_epoch = np.concatenate(preds_all)
+        labels_epoch = np.concatenate(labels_all)
 
-    preds_epoch = np.concatenate(preds_all)
-    labels_epoch = np.concatenate(labels_all)
+        score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
-    score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
-
-    return score_epoch, loss.detach().cpu().numpy(), lr
+        return score_epoch, loss.detach().cpu().numpy(), lr
+    else:
+        return lr
 
 
 def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
@@ -360,15 +367,21 @@ def main(cfg: DictConfig):
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
 
-            train_start_time = time.time()
-
-            train_score_epoch, train_loss_epoch, lr = train_one_epoch(
-                cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
-
-            train_finish_time = time.time()
-
-            print(
-                f'TRAIN | epoch: {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
+            
+            if cfg.mix_p != 0:
+                train_start_time = time.time()
+                train_score_epoch, train_loss_epoch, lr = train_one_epoch(
+                    cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                train_finish_time = time.time()
+                print(
+                    f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
+            else:
+                train_start_time = time.time()
+                lr = train_one_epoch(
+                    cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                train_finish_time = time.time()
+                print(
+                    f'TRAIN {epoch}, mixup, time: {train_finish_time-train_start_time:.4f}')
 
             # Valid Start
 
@@ -383,11 +396,14 @@ def main(cfg: DictConfig):
             valid_rmse[epoch] = valid_score_epoch
 
             print(
-                f'VALID | epoch: {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-
-            wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-                       'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                       'epoch': epoch, 'lr': lr})
+                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+            if cfg.mix_p != 0:
+                wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
+                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                        'epoch': epoch, 'lr': lr})
+            else:
+                wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                        'epoch': epoch, 'lr': lr})
 
         # print Score
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
