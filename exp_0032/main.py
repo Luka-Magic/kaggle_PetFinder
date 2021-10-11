@@ -231,10 +231,10 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         scaler.update()
         optimizer.zero_grad()
 
-        if mix_p != 0:
-
+        if mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss':
-                preds_all += [np.clip(torch.sigmoid(preds).detach().cpu().numpy() * 100, 0, 100)]
+                preds_all += [np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 0, 100)]
                 labels_all += [labels.detach().cpu().numpy() * 100]
             elif cfg.loss == 'MSELoss':
                 preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
@@ -367,8 +367,7 @@ def main(cfg: DictConfig):
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
 
-            
-            if cfg.mix_p != 0:
+            if cfg.mix_p == 0:
                 train_start_time = time.time()
                 train_score_epoch, train_loss_epoch, lr = train_one_epoch(
                     cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
@@ -399,11 +398,11 @@ def main(cfg: DictConfig):
                 f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
             if cfg.mix_p != 0:
                 wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-                        'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                        'epoch': epoch, 'lr': lr})
+                           'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                           'epoch': epoch, 'lr': lr})
             else:
                 wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                        'epoch': epoch, 'lr': lr})
+                           'epoch': epoch, 'lr': lr})
 
         # print Score
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
