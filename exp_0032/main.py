@@ -231,7 +231,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         scaler.update()
         optimizer.zero_grad()
 
-        if mix_p == 0:
+        if cfg.mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss':
                 preds_all += [np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 0, 100)]
@@ -253,7 +253,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     lr = get_lr(optimizer)
     if scheduler:
         scheduler.step()
-    if mix_p != 0:
+    if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
 
