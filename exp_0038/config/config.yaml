@@ -1,0 +1,117 @@
+#####   BASIC   ########################################
+data_path: /content/drive/MyDrive/kaggle_PetFinder/data
+wandb_project: kaggle_PF
+seed: 77
+epoch: 10
+fold: StratifiedKFold
+fold_num: 10
+use_fold: [0]
+model_arch: vit_large_patch32_384
+device: cuda:0
+
+######   Loss   ########################################
+loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss
+
+##### Optimizer ########################################
+optimizer: AdamW
+lr: 1e-5
+weight_decay: 1e-6
+beta1: 0.5
+beta2: 0.999
+
+##### Scheduler ########################################
+scheduler: CosineAnnealingWarmRestarts # OneCycleLR
+T_0: ${epoch} # CAWR
+T_mult: 1 # CAWR
+eta_min: 1e-9 # CAWR
+
+pct_start: 0.3 # OCLR
+div_factor: 25. # OCLR
+final_div_factor: 1000. # OCLR
+
+##### Image Info ########################################
+img_mean: [0.485, 0.456, 0.406]
+img_std: [0.229, 0.224, 0.225]
+img_size: 384
+
+##### DataLoader ########################################
+train_bs: 32
+valid_bs: 32
+num_workers: 2
+
+##### MixUp #############################################
+mix_p: 0.0
+
+##### Data Augmentation #################################
+padding: None
+
+train_aug:
+  RandomResizedCrop:
+    height: ${img_size}
+    width: ${img_size}
+    p: 1.0
+  # Resize:
+  #   height: ${img_size}
+  #   width: ${img_size}
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+
+  HorizontalFlip: 
+    p: 0.5
+  VerticalFlip: 
+    p: 0.5
+  Rotate:
+    limit: 180
+    p: 0.5
+  ShiftScaleRotate:
+    shift_limit: 0.1
+    scale_limit: 0.1
+    rotate_limit: 45
+    p: 0.5
+  HueSaturationValue:
+    hue_shift_limit: 0.2
+    sat_shift_limit: 0.2
+    val_shift_limit: 0.2
+    p: 0.5
+  RandomBrightnessContrast:
+    brightness_limit: 0.1
+    contrast_limit: 0.1
+    p: 0.5
+  CutOut:
+    num_holes: 10
+    max_h_size: 50
+    max_w_size: 50
+    p: 0.5
+
+
+valid_aug:
+  Resize:
+    height: ${img_size}
+    width: ${img_size}
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+
+tta_aug:
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+  Resize:
+    height: ${img_size}
+    width: ${img_size}
+  RandomResizedCrop:
+    height: ${img_size}
+    width: ${img_size}
+    scale: [0.3, 1.0]
+    p: 1.0
+  HorizontalFlip: 
+    p: 0.5
+  VerticalFlip: 
+    p: 0.5
