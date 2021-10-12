@@ -218,7 +218,9 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
 
         with autocast():
             mix_p = np.random.rand()
-            if mix_p < cfg.mix_p:
+            mix_list = list(range(cfg.init_nomix_epoch,
+                            cfg.epoch-cfg.last_nomix_epoch))
+            if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
                 preds = model(imgs)
                 loss = loss_fn(
