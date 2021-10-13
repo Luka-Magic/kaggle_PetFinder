@@ -82,7 +82,7 @@ train_aug:
     brightness_limit: 0.1
     contrast_limit: 0.1
     p: 0.5
-  CutOut:
+  Cutout:
     num_holes: 10
     max_h_size: 50
     max_w_size: 50
