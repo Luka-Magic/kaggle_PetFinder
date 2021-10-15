@@ -88,7 +88,7 @@ class pf_dataset(Dataset):
         else:
             img = img_rgb.transpose(2, 0, 1) / 256.
             img = torch.from_numpy(img).float()
-        
+
         dense = torch.from_numpy(
             self.df.loc[index, self.dense_columns].values.astype('float'))
 
@@ -173,7 +173,6 @@ class pf_model(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
-
 
     def forward(self, x, dense):
         x = self.model(x)
@@ -304,6 +303,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss':
