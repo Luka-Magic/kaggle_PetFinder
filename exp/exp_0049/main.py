@@ -396,6 +396,8 @@ def main(cfg: DictConfig):
         elif cfg.loss == 'BCEWithLogitsLoss':
             loss_fn = nn.BCEWithLogitsLoss()
 
+        best_score = {'score': 100, 'epoch': 0}
+
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
 
@@ -437,16 +439,25 @@ def main(cfg: DictConfig):
                            'epoch': epoch, 'lr': lr})
 
             if cfg.save:
-                model_name = os.path.join(
-                    '/'.join(os.getcwd().split('/')[:-2]), f"{cfg.model_arch}_fold_{fold}_{epoch}.pth")
-                torch.save(model.state_dict(), model_name)
+                if best_score['score'] < valid_rmse:
+                    model_name = os.path.join(
+                        '/'.join(os.getcwd().split('/')[:-2]), f"{cfg.model_arch}_fold_{fold}.pth")
+                    torch.save(model.state_dict(), model_name)
+                    best_score['score'] = valid_rmse
+                    best_score['epoch'] = epoch
+                    print(
+                        f'Best score update! valid rmse: {valid_rmse}, epoch: {epoch}')
+                else:
+                    print(
+                        f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
 
         # print Score
 
         valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
         print('-'*30)
+        print(f'Fold {fold}')
         for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
-            print(f'No.{i+1} epoch{epoch}: {rmse:.5f}')
+            print(f'No.{i+1}: {rmse:.5f} (epoch{epoch})')
         print('-'*30)
 
         del model

@@ -5,11 +5,11 @@ seed: 77
 epoch: 10
 fold: StratifiedKFold
 fold_num: 10
-use_fold: [0]
+use_fold: [0, 1, 2, 3, 4]
 dense_columns: ['Subject Focus', 'Eyes', 'Face', 'Near', 'Action', 'Accessory', 'Group', 'Collage', 'Human', 'Occlusion', 'Info', 'Blur']
 model_arch: swin_base_patch4_window12_384_in22k
 device: cuda:0
-save: True
+save: False
 
 ##### Group ############################################
 cluster_num: 6
