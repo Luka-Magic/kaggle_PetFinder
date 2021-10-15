@@ -58,6 +58,7 @@ class pf_dataset(Dataset):
         self.phase = phase
         self.transforms = transforms
         self.output_label = output_label
+        self.dense_columns = cfg.dense_columns
 
     def __len__(self):
         return self.df.shape[0]
@@ -87,12 +88,15 @@ class pf_dataset(Dataset):
         else:
             img = img_rgb.transpose(2, 0, 1) / 256.
             img = torch.from_numpy(img).float()
+        
+        dense = torch.from_numpy(
+            self.df.loc[index, self.dense_columns].values.astype('float'))
 
         if self.output_label:
             target = self.df.iloc[index]['Pawpularity']
-            return img, target
+            return img, dense, target
 
-        return img
+        return img, dense
 
 
 def get_transforms(cfg, phase):
@@ -155,20 +159,28 @@ def cutmix(data, target, alpha):
 
 
 class pf_model(nn.Module):
-    def __init__(self, model_arch, pretrained=True):
+    def __init__(self, cfg, pretrained=True):
         super().__init__()
         self.model = timm.create_model(
-            model_arch, pretrained=pretrained, in_chans=3)
+            cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if model_arch == 'vit_large_patch32_384' or model_arch == 'swin_base_patch4_window12_384_in22k':
+        if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k':
             n_features = self.model.head.in_features
-            self.model.head = nn.Linear(n_features, 1)
-        elif model_arch == 'tf_efficientnet_b0':
+            self.model.head = nn.Linear(n_features, 128)
+        elif cfg.model_arch == 'tf_efficientnet_b0':
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(self.n_features, 1)
+            self.model.classifier = nn.Linear(self.n_features, 128)
+        self.dropout = nn.Dropout(0.1)
+        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
+        self.fc2 = nn.Linear(64, 1)
 
-    def forward(self, x):
+
+    def forward(self, x, dense):
         x = self.model(x)
+        x = self.dropout(x)
+        x = torch.cat([x, dense], dim=1)
+        x = self.fc1(x)
+        x = self.fc2(x)
         return x
 
 
@@ -223,8 +235,9 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     preds_all = []
     labels_all = []
 
-    for step, (imgs, labels) in pbar:
+    for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss':
@@ -236,11 +249,11 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds = model(imgs)
+                preds = model(imgs, dense)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs)
+                preds = model(imgs, dense)
                 loss = loss_fn(preds, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -289,7 +302,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     preds_all = []
     labels_all = []
 
-    for step, (imgs, labels) in pbar:
+    for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
@@ -297,7 +310,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             labels /= 100
 
         with autocast():
-            preds = model(imgs)
+            preds = model(imgs, dense)
 
         loss = loss_fn(preds, labels)
 
@@ -363,7 +376,7 @@ def main(cfg: DictConfig):
 
         device = torch.device(cfg.device)
 
-        model = pf_model(cfg.model_arch, pretrained=True).to(device)
+        model = pf_model(cfg, pretrained=True).to(device)
 
         scaler = GradScaler()
 
