@@ -439,7 +439,7 @@ def main(cfg: DictConfig):
                            'epoch': epoch, 'lr': lr})
 
             if cfg.save:
-                if best_score['score'] < valid_score_epoch:
+                if best_score['score'] > valid_score_epoch:
                     model_name = os.path.join(
                         '/'.join(os.getcwd().split('/')[:-2]), f"{cfg.model_arch}_fold_{fold}.pth")
                     torch.save(model.state_dict(), model_name)
