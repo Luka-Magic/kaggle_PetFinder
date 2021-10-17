@@ -167,7 +167,7 @@ class pf_model(nn.Module):
         if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k':
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, 128)
-        elif cfg.model_arch == 'tf_efficientnet_b0':
+        elif cfg.model_arch == 'tf_efficientnet_b0' or cfg.model_arch == 'tf_efficientnet_b2_ns':
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(self.n_features, 128)
         self.dropout = nn.Dropout(0.1)
