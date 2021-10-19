@@ -440,9 +440,12 @@ def main(cfg: DictConfig):
 
             if cfg.save:
                 if best_score['score'] > valid_score_epoch:
-                    model_name = os.path.join(
-                        '/'.join(os.getcwd().split('/')[:-6]), f"model/{os.getcwd().split('/')[-2]}/{cfg.model_arch}_fold_{fold}.pth")
+                    model_dir = os.path.join('/'.join(os.getcwd().split('/')[:-6]), f"model/{os.getcwd().split('/')[-4]}")
+                    if not os.path.exists(model_dir):
+                        os.mkdir(model_dir)
+                    model_name = os.path.join(model_dir, f"{cfg.model_arch}_fold_{fold}.pth")
                     torch.save(model.state_dict(), model_name)
+                    
                     best_score['score'] = valid_score_epoch
                     best_score['epoch'] = epoch
                     print(
