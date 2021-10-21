@@ -346,14 +346,15 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     return score_epoch, loss.detach().cpu().numpy()
 
-def result_output(cfg, fold, train_fold_df, model_name, device):
+
+def result_output(cfg, fold, train_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
     model.load_state_dict(torch.load(model_name))
     features_model = model.to(device)
 
     ds = pf_dataset(cfg, train_fold_df, 'valid',
-                          transforms=get_transforms(cfg, 'valid'))
-    
+                    transforms=get_transforms(cfg, 'valid'))
+
     data_loader = DataLoader(
         ds,
         batch_size=cfg.valid_bs,
@@ -378,13 +379,15 @@ def result_output(cfg, fold, train_fold_df, model_name, device):
                 preds, features = features_model(imgs, dense)
         if step == 0:
             features_list = features.detach().cpu().numpy()
-            preds_list = preds.detach().cpu().numpy()
+            preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
         else:
-            features_list = np.concatenate([features_list, features.detach().cpu().numpy()], axis=0)
-            preds_list = np.concatenate([preds_list, preds.detach().cpu().numpy()], axis=0)
-    result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[f'feature_{i}' for i in range(128)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
-    result_df.to_csv(os.path.dirname(model_name), index=False)
-    
+            features_list = np.concatenate(
+                [features_list, features.detach().cpu().numpy()], axis=0)
+            preds_list = np.concatenate(
+                [preds_list, preds.detach().cpu().numpy()], axis=0)
+    result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
+                          f'feature_{i}' for i in range(128)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
+    result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
 
 @hydra.main(config_path='config', config_name='config')
@@ -514,7 +517,8 @@ def main(cfg: DictConfig):
         torch.cuda.empty_cache()
 
         if cfg.save and cfg.result_output:
-            result_output(cfg, train_fold_df, model_name, device)
+            result_output(cfg, fold, train_fold_df,
+                          model_name, save_path, device)
 
 
 if __name__ == '__main__':
