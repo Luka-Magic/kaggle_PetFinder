@@ -367,7 +367,7 @@ def result_output(cfg, fold, train_fold_df, model_name, save_path, device):
 
     features_model.eval()
 
-    pbar = tqdm(enumerate(data_loader))
+    pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
     features_list = np.array([])
     preds_list = np.array([])
