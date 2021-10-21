@@ -345,7 +345,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
-
+    
     train_df, _ = load_data(cfg)
 
     if cfg.fold == 'KFold':
