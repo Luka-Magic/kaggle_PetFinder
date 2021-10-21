@@ -364,7 +364,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         pin_memory=True
     )
 
-    result_df = valid_fold_df[['Id', 'kfold', 'Pawpularity']]
+    result_df = valid_fold_df.copy()
 
     features_model.eval()
 
