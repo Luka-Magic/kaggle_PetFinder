@@ -410,6 +410,7 @@ def main(cfg: DictConfig):
             loss_fn = FOCALLoss(gamma=cfg.gamma)
 
         best_score = {'score': 100, 'epoch': 0}
+        print(cfg.epoch)
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
