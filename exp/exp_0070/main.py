@@ -1,6 +1,6 @@
 # Python Libraries
-from loss import FOCALLoss, RMSELoss
-from mixaug import mixup, cutmix
+from utils.loss import FOCALLoss, RMSELoss
+from utils.mixaug import mixup, cutmix
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -24,9 +24,6 @@ from torch.utils.data import Dataset, DataLoader
 from torch.cuda.amp import autocast, GradScaler
 import wandb
 import albumentations
-import sys
-sys.path.append('utils')
-
 
 def load_data(cfg):
     data_path = cfg.data_path
