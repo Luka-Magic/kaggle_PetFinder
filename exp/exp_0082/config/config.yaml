@@ -10,15 +10,16 @@ dense_columns: ['Subject Focus', 'Eyes', 'Face', 'Near', 'Action', 'Accessory', 
 features_num: 128
 model_arch: swin_base_patch4_window12_384_in22k
 device: cuda:0
-save: True
-result_output: True
+save: False
+result_output: False
 
 ######   Loss   ########################################
-loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss
+loss: FOCALLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+gamma: 0. # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 5e-6
+lr: 5e-4
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
@@ -44,9 +45,9 @@ valid_bs: 16
 num_workers: 2
 
 ##### MixUp #############################################
-mix_p: 0.5
-init_nomix_epoch: 1
-last_nomix_epoch: 1
+mix_p: 0.
+init_nomix_epoch: 0
+last_nomix_epoch: 0
 
 ##### Data Augmentation #################################
 padding: None
@@ -98,8 +99,6 @@ train_aug:
     p: 0.25
   ToGray:
     p: 0.1
-  RandomGridShuffle:
-    p: 0.3
 
 
 valid_aug:
