@@ -364,6 +364,13 @@ def main(cfg: DictConfig):
     for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
             continue
+        
+        if len(cfg.use_fold) == 1:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4], config=cfg)
+        else:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
         train_fold_df = train_df[train_df['kfold']
                                  != fold].reset_index(drop=True)
