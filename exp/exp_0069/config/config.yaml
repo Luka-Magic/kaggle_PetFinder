@@ -10,6 +10,7 @@ dense_columns: ['Subject Focus', 'Eyes', 'Face', 'Near', 'Action', 'Accessory', 
 model_arch: swin_base_patch4_window12_384_in22k
 device: cuda:0
 save: True
+result_output: True
 
 ##### Group ############################################
 cluster_num: 6

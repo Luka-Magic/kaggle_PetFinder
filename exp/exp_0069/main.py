@@ -184,13 +184,13 @@ class pf_model(nn.Module):
         self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
-    def forward(self, x, dense):
-        x = self.model(x)
-        x = self.dropout(x)
-        x = torch.cat([x, dense], dim=1)
+    def forward(self, input, dense):
+        features = self.model(input)
+        features = self.dropout(features)
+        x = torch.cat([features, dense], dim=1)
         x = self.fc1(x)
         x = self.fc2(x)
-        return x
+        return x, features
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -254,11 +254,11 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(preds, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -268,10 +268,10 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         if cfg.mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss':
                 preds_all += [np.clip(torch.sigmoid(
-                    preds).detach().cpu().numpy() * 100, 0, 100)]
+                    preds).detach().cpu().numpy() * 100, 1, 100)]
                 labels_all += [labels.detach().cpu().numpy() * 100]
             elif cfg.loss == 'MSELoss':
-                preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
+                preds_all += [np.clip(preds.detach().cpu().numpy(), 1, 100)]
                 labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.concatenate(preds_all)
@@ -316,16 +316,16 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             labels /= 100
 
         with autocast():
-            preds = model(imgs, dense)
+            preds, _ = model(imgs, dense)
 
         loss = loss_fn(preds, labels)
 
         if cfg.loss == 'BCEWithLogitsLoss':
             preds = np.clip(torch.sigmoid(
-                preds).detach().cpu().numpy() * 100, 0, 100)
+                preds).detach().cpu().numpy() * 100, 1, 100)
             labels = labels.detach().cpu().numpy() * 100
         elif cfg.loss == 'MSELoss':
-            preds = np.clip(preds.detach().cpu().numpy(), 0, 100)
+            preds = np.clip(preds.detach().cpu().numpy(), 1, 100)
             labels = labels.detach().cpu().numpy()
 
         preds_all += [preds]
@@ -346,6 +346,46 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     return score_epoch, loss.detach().cpu().numpy()
 
+def result_output(cfg, fold, train_fold_df, model_name, device):
+    model = pf_model(cfg, pretrained=False)
+    model.load_state_dict(torch.load(model_name))
+    features_model = model.to(device)
+
+    ds = pf_dataset(cfg, train_fold_df, 'valid',
+                          transforms=get_transforms(cfg, 'valid'))
+    
+    data_loader = DataLoader(
+        ds,
+        batch_size=cfg.valid_bs,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        pin_memory=True
+    )
+
+    result_df = train_fold_df[['Id', 'kfold', 'Pawpularity']]
+
+    features_model.eval()
+
+    pbar = tqdm(enumerate(data_loader))
+
+    features_list = np.array([])
+    preds_list = np.array([])
+    for step, (imgs, dense, _) in pbar:
+        imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
+        with autocast():
+            with torch.no_grad():
+                preds, features = features_model(imgs, dense)
+        if step == 0:
+            features_list = features.detach().cpu().numpy()
+            preds_list = preds.detach().cpu().numpy()
+        else:
+            features_list = np.concatenate([features_list, features.detach().cpu().numpy()], axis=0)
+            preds_list = np.concatenate([preds_list, preds.detach().cpu().numpy()], axis=0)
+    result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[f'feature_{i}' for i in range(128)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
+    result_df.to_csv(os.path.dirname(model_name), index=False)
+    
+
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
@@ -364,7 +404,7 @@ def main(cfg: DictConfig):
     for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
             continue
-        
+
         if len(cfg.use_fold) == 1:
             wandb.init(project=cfg.wandb_project, entity='luka-magic',
                        name=os.getcwd().split('/')[-4], config=cfg)
@@ -447,9 +487,9 @@ def main(cfg: DictConfig):
                            'epoch': epoch, 'lr': lr})
 
             if cfg.save:
+                model_name = os.path.join(
+                    save_path, f"{cfg.model_arch}_fold_{fold}.pth")
                 if best_score['score'] > valid_score_epoch:
-                    model_name = os.path.join(
-                        save_path, f"{cfg.model_arch}_fold_{fold}.pth")
                     torch.save(model.state_dict(), model_name)
 
                     best_score['score'] = valid_score_epoch
@@ -472,6 +512,9 @@ def main(cfg: DictConfig):
         del model
         gc.collect()
         torch.cuda.empty_cache()
+
+        if cfg.save and cfg.result_output:
+            result_output(cfg, train_fold_df, model_name, device)
 
 
 if __name__ == '__main__':
