@@ -101,8 +101,10 @@ train_aug:
     p: 0.25
   ToGray:
     p: 0.1
+  RandomGridShuffle:
+    p: 0.25
 
-
+    
 valid_aug:
   Resize:
     height: ${img_size}
