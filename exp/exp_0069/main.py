@@ -347,7 +347,6 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     return score_epoch, loss.detach().cpu().numpy()
 
-
 def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
     model.load_state_dict(torch.load(model_name))

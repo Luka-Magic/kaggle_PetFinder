@@ -33,10 +33,20 @@ def load_data(cfg):
         lambda x: os.path.join(data_path, f'train/{x}.jpg'))
     test_df['file_path'] = test_df['Id'].apply(
         lambda x: os.path.join(data_path, f'test/{x}.jpg'))
-    k = KMeans(cfg.cluster_num, random_state=cfg.seed)
-    X = train_df.drop(['Id', 'Pawpularity', 'file_path'], axis=1)
-    k.fit(X)
-    train_df['cluster'] = k.predict(X)
+
+    train_df['kfold'] = -1
+
+    if cfg.fold == 'KFold':
+        folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
+            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
+    elif cfg.fold == 'StratifiedKFold':
+        folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
+            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
+    elif cfg.fold == 'StratifiedGroupKFold':
+        folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
+            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values, groups=train_df.cluster.values)
+    for fold, (train_index, valid_index) in enumerate(folds):
+        train_df.loc[valid_index, 'kfold'] = fold
 
     return train_df, test_df
 
@@ -166,34 +176,31 @@ class pf_model(nn.Module):
 
         if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k':
             n_features = self.model.head.in_features
-            self.model.head = nn.Linear(n_features, 128)
-        elif cfg.model_arch == 'tf_efficientnet_b0' or cfg.model_arch == 'tf_efficientnet_b2_ns':
+            self.model.head = nn.Linear(n_features, cfg.features_num)
+        elif cfg.model_arch == 'tf_efficientnet_b0':
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(self.n_features, 128)
+            self.model.classifier = nn.Linear(
+                self.n_features, cfg.features_num)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(cfg.features_num + len(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
-    def forward(self, x, dense):
-        x = self.model(x)
-        x = self.dropout(x)
-        x = torch.cat([x, dense], dim=1)
+    def forward(self, input, dense):
+        features = self.model(input)
+        features = self.dropout(features)
+        x = torch.cat([features, dense], dim=1)
         x = self.fc1(x)
         x = self.fc2(x)
-        return x
+        return x, features
 
 
-def prepare_dataloader(cfg, train_df, train_index, valid_index):
-
-    train_ = train_df.loc[train_index, :].reset_index(drop=True)
-    valid_ = train_df.loc[valid_index, :].reset_index(drop=True)
-
-    train_ds = pf_dataset(cfg, train_, 'train',
+def prepare_dataloader(cfg, train_df, valid_df):
+    train_ds = pf_dataset(cfg, train_df, 'train',
                           transforms=get_transforms(cfg, 'train'))
-    valid_ds = pf_dataset(cfg, valid_, 'valid',
+    valid_ds = pf_dataset(cfg, valid_df, 'valid',
                           transforms=get_transforms(cfg, 'valid'))
     valid_tta_ds = pf_dataset(
-        cfg, valid_, 'valid', transforms=get_transforms(cfg, 'tta'))
+        cfg, valid_df, 'valid', transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
@@ -248,11 +255,11 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(preds, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -262,10 +269,10 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         if cfg.mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss':
                 preds_all += [np.clip(torch.sigmoid(
-                    preds).detach().cpu().numpy() * 100, 0, 100)]
+                    preds).detach().cpu().numpy() * 100, 1, 100)]
                 labels_all += [labels.detach().cpu().numpy() * 100]
             elif cfg.loss == 'MSELoss':
-                preds_all += [np.clip(preds.detach().cpu().numpy(), 0, 100)]
+                preds_all += [np.clip(preds.detach().cpu().numpy(), 1, 100)]
                 labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.concatenate(preds_all)
@@ -310,16 +317,16 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             labels /= 100
 
         with autocast():
-            preds = model(imgs, dense)
+            preds, _ = model(imgs, dense)
 
         loss = loss_fn(preds, labels)
 
         if cfg.loss == 'BCEWithLogitsLoss':
             preds = np.clip(torch.sigmoid(
-                preds).detach().cpu().numpy() * 100, 0, 100)
+                preds).detach().cpu().numpy() * 100, 1, 100)
             labels = labels.detach().cpu().numpy() * 100
         elif cfg.loss == 'MSELoss':
-            preds = np.clip(preds.detach().cpu().numpy(), 0, 100)
+            preds = np.clip(preds.detach().cpu().numpy(), 1, 100)
             labels = labels.detach().cpu().numpy()
 
         preds_all += [preds]
@@ -340,25 +347,64 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     return score_epoch, loss.detach().cpu().numpy()
 
+def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
+    model = pf_model(cfg, pretrained=False)
+    model.load_state_dict(torch.load(model_name))
+    features_model = model.to(device)
+
+    ds = pf_dataset(cfg, valid_fold_df, 'valid',
+                    transforms=get_transforms(cfg, 'valid'))
+
+    data_loader = DataLoader(
+        ds,
+        batch_size=cfg.valid_bs,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        pin_memory=True
+    )
+
+    result_df = valid_fold_df.copy()
+
+    features_model.eval()
+
+    pbar = tqdm(enumerate(data_loader), total=len(data_loader))
+
+    features_list = np.array([])
+    preds_list = np.array([])
+    for step, (imgs, dense, _) in pbar:
+        imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
+        with autocast():
+            with torch.no_grad():
+                preds, features = features_model(imgs, dense)
+        if step == 0:
+            features_list = features.detach().cpu().numpy()
+            preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
+        else:
+            features_list = np.concatenate(
+                [features_list, features.detach().cpu().numpy()], axis=0)
+            preds_list = np.concatenate(
+                [preds_list, np.clip(preds.detach().cpu().numpy(), 1, 100)], axis=0)
+    result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
+                          f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
+    result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
+
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
-    
-    train_df, _ = load_data(cfg)
 
-    if cfg.fold == 'KFold':
-        folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    elif cfg.fold == 'StratifiedKFold':
-        folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    elif cfg.fold == 'StratifiedGroupKFold':
-        folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values, groups=train_df.cluster.values)
+    save_path = os.path.join(
+        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
 
-    for fold, (train_index, valid_index) in enumerate(folds):
+    train_df, test_df = load_data(cfg)
+    train_df.to_csv(os.path.join(save_path, 'train.csv'))
+    test_df.to_csv(os.path.join(save_path, 'test.csv'))
+
+    for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
             continue
 
@@ -369,10 +415,15 @@ def main(cfg: DictConfig):
             wandb.init(project=cfg.wandb_project, entity='luka-magic',
                        name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
+        train_fold_df = train_df[train_df['kfold']
+                                 != fold].reset_index(drop=True)
+        valid_fold_df = train_df[train_df['kfold']
+                                 == fold].reset_index(drop=True)
+
         valid_rmse = {}
 
         train_loader, valid_loader, _ = prepare_dataloader(
-            cfg, train_df, train_index, valid_index)
+            cfg, train_fold_df, valid_fold_df)
 
         device = torch.device(cfg.device)
 
@@ -439,11 +490,9 @@ def main(cfg: DictConfig):
                            'epoch': epoch, 'lr': lr})
 
             if cfg.save:
+                model_name = os.path.join(
+                    save_path, f"{cfg.model_arch}_fold_{fold}.pth")
                 if best_score['score'] > valid_score_epoch:
-                    model_dir = os.path.join('/'.join(os.getcwd().split('/')[:-6]), f"model/{os.getcwd().split('/')[-4]}")
-                    if not os.path.exists(model_dir):
-                        os.mkdir(model_dir)
-                    model_name = os.path.join(model_dir, f"{cfg.model_arch}_fold_{fold}.pth")
                     torch.save(model.state_dict(), model_name)
 
                     best_score['score'] = valid_score_epoch
@@ -466,6 +515,10 @@ def main(cfg: DictConfig):
         del model
         gc.collect()
         torch.cuda.empty_cache()
+
+        if cfg.save and cfg.result_output:
+            result_output(cfg, fold, valid_fold_df,
+                          model_name, save_path, device)
 
 
 if __name__ == '__main__':
