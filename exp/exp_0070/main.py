@@ -347,7 +347,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 [preds_list, np.clip(preds.detach().cpu().numpy(), 1, 100)], axis=0)
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
-    result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
+    return result_df
 
 
 @hydra.main(config_path='config', config_name='config')
@@ -363,6 +363,7 @@ def main(cfg: DictConfig):
     train_df, test_df = load_data(cfg)
     train_df.to_csv(os.path.join(save_path, 'train.csv'))
     test_df.to_csv(os.path.join(save_path, 'test.csv'))
+    save_flag = False
 
     for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
@@ -481,8 +482,15 @@ def main(cfg: DictConfig):
         torch.cuda.empty_cache()
 
         if cfg.save and cfg.result_output:
-            result_output(cfg, fold, valid_fold_df,
+            if save_flag == False:
+                results_df = result_output(cfg, fold, valid_fold_df,
                           model_name, save_path, device)
+                save_flag = True
+            else:
+                results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
+                                                                  model_name, save_path, device)], axis=0)
+    if save_flag:
+        results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
 
 if __name__ == '__main__':
