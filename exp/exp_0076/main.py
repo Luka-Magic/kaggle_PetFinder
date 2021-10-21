@@ -1,28 +1,29 @@
 # Python Libraries
-import albumentations
-import wandb
-from torch.cuda.amp import autocast, GradScaler
-from torch.utils.data import Dataset, DataLoader
-from torch import nn
-import torch
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import StratifiedKFold, KFold, StratifiedGroupKFold
-from sklearn.cluster import KMeans
-import timm
-from albumentations.pytorch import ToTensorV2
-import cv2
-import os
-import gc
-import time
-import re
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
-import hydra
-from omegaconf import DictConfig
+from utils.loss import FOCALLoss, RMSELoss
+from utils.mixaug import mixup, cutmix
 import warnings
-
+from omegaconf import DictConfig
+import hydra
+from tqdm.notebook import tqdm
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import re
+import time
+import gc
+import os
+import cv2
+from albumentations.pytorch import ToTensorV2
+import timm
+from sklearn.cluster import KMeans
+from sklearn.model_selection import StratifiedKFold, KFold, StratifiedGroupKFold
+from sklearn.metrics import mean_squared_error
+import torch
+from torch import nn
+from torch.utils.data import Dataset, DataLoader
+from torch.cuda.amp import autocast, GradScaler
+import wandb
+import albumentations
 
 def load_data(cfg):
     data_path = cfg.data_path
@@ -123,51 +124,6 @@ def get_transforms(cfg, phase):
     return albumentations.Compose(augs)
 
 
-def rand_bbox(size, l):
-    W = size[-2]
-    H = size[-1]
-    cut_rat = np.sqrt(1.0 - l)
-    cut_W = np.int(W * cut_rat)
-    cut_H = np.int(H * cut_rat)
-
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
-
-    bbx1 = np.clip(cx - cut_W // 2, 0, W)
-    bbx2 = np.clip(cx + cut_W // 2, 0, W)
-    bby1 = np.clip(cy - cut_H // 2, 0, H)
-    bby2 = np.clip(cy + cut_H // 2, 0, H)
-    return bbx1, bby1, bbx2, bby2
-
-
-def mixup(data, target, alpha):
-    indices = torch.randperm(data.size(0))
-    shuffled_data = data[indices]
-    shuffled_target = target[indices]
-    new_data = data.clone()
-
-    l = np.clip(np.random.beta(alpha, alpha), 0.4, 0.6)
-    new_data = new_data * l + data[indices, :, :, :] * (1 - l)
-    targets = (target, shuffled_target, l)
-    return new_data, targets
-
-
-def cutmix(data, target, alpha):
-    indices = torch.randperm(data.size(0))
-    shuffled_data = data[indices]
-    shuffled_target = target[indices]
-    new_data = data.clone()
-
-    l = np.clip(np.random.beta(alpha, alpha), 0.3, 0.4)
-    bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), l)
-    new_data[:, :, bby1:bby2, bbx1:bbx2] = data[indices, :, bby1:bby2, bbx1:bbx2]
-    l = 1 - (((bbx2 - bbx1) * (bby2 - bby1)) /
-             (data.size()[-1] * data.size()[-2]))
-    targets = (target, shuffled_target, l)
-
-    return new_data, targets
-
-
 class pf_model(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
@@ -246,7 +202,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
-        if cfg.loss == 'BCEWithLogitsLoss':
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             labels /= 100
 
         with autocast():
@@ -267,11 +223,11 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         optimizer.zero_grad()
 
         if cfg.mix_p == 0:
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_all += [np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)]
                 labels_all += [labels.detach().cpu().numpy() * 100]
-            elif cfg.loss == 'MSELoss':
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
                 preds_all += [np.clip(preds.detach().cpu().numpy(), 1, 100)]
                 labels_all += [labels.detach().cpu().numpy()]
 
@@ -313,7 +269,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
-        if cfg.loss == 'BCEWithLogitsLoss':
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             labels /= 100
 
         with autocast():
@@ -321,11 +277,11 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
         loss = loss_fn(preds, labels)
 
-        if cfg.loss == 'BCEWithLogitsLoss':
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             preds = np.clip(torch.sigmoid(
                 preds).detach().cpu().numpy() * 100, 1, 100)
             labels = labels.detach().cpu().numpy() * 100
-        elif cfg.loss == 'MSELoss':
+        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             preds = np.clip(preds.detach().cpu().numpy(), 1, 100)
             labels = labels.detach().cpu().numpy()
 
@@ -346,6 +302,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
     return score_epoch, loss.detach().cpu().numpy()
+
 
 def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
@@ -387,7 +344,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 [preds_list, np.clip(preds.detach().cpu().numpy(), 1, 100)], axis=0)
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
-    result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
+    return result_df
 
 
 @hydra.main(config_path='config', config_name='config')
@@ -403,6 +360,7 @@ def main(cfg: DictConfig):
     train_df, test_df = load_data(cfg)
     train_df.to_csv(os.path.join(save_path, 'train.csv'))
     test_df.to_csv(os.path.join(save_path, 'test.csv'))
+    save_flag = False
 
     for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
@@ -446,6 +404,10 @@ def main(cfg: DictConfig):
             loss_fn = nn.MSELoss()
         elif cfg.loss == 'BCEWithLogitsLoss':
             loss_fn = nn.BCEWithLogitsLoss()
+        elif cfg.loss == 'RMSELoss':
+            loss_fn = RMSELoss()
+        elif cfg.loss == 'FOCALLoss':
+            loss_fn = FOCALLoss(gamma=cfg.gamma)
 
         best_score = {'score': 100, 'epoch': 0}
 
@@ -517,8 +479,15 @@ def main(cfg: DictConfig):
         torch.cuda.empty_cache()
 
         if cfg.save and cfg.result_output:
-            result_output(cfg, fold, valid_fold_df,
+            if save_flag == False:
+                results_df = result_output(cfg, fold, valid_fold_df,
                           model_name, save_path, device)
+                save_flag = True
+            else:
+                results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
+                                                                  model_name, save_path, device)], axis=0)
+    if save_flag:
+        results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
 
 if __name__ == '__main__':
