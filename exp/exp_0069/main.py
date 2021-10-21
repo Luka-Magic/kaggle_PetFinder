@@ -384,7 +384,7 @@ def result_output(cfg, fold, train_fold_df, model_name, save_path, device):
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
             preds_list = np.concatenate(
-                [preds_list, preds.detach().cpu().numpy()], axis=0)
+                [preds_list, np.clip(preds.detach().cpu().numpy(), 1, 100)], axis=0)
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(128)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
     result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
