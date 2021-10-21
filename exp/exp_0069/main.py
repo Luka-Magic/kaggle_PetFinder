@@ -176,12 +176,12 @@ class pf_model(nn.Module):
 
         if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k':
             n_features = self.model.head.in_features
-            self.model.head = nn.Linear(n_features, 128)
+            self.model.head = nn.Linear(n_features, cfg.features_num)
         elif cfg.model_arch == 'tf_efficientnet_b0':
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(self.n_features, 128)
+            self.model.classifier = nn.Linear(self.n_features, cfg.features_num)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(cfg.features_num + len(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
@@ -386,7 +386,7 @@ def result_output(cfg, fold, train_fold_df, model_name, save_path, device):
             preds_list = np.concatenate(
                 [preds_list, np.clip(preds.detach().cpu().numpy(), 1, 100)], axis=0)
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
-                          f'feature_{i}' for i in range(128)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
+                          f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
     result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
 
