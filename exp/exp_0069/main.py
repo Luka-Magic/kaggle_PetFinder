@@ -179,7 +179,8 @@ class pf_model(nn.Module):
             self.model.head = nn.Linear(n_features, cfg.features_num)
         elif cfg.model_arch == 'tf_efficientnet_b0':
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(self.n_features, cfg.features_num)
+            self.model.classifier = nn.Linear(
+                self.n_features, cfg.features_num)
         self.dropout = nn.Dropout(0.1)
         self.fc1 = nn.Linear(cfg.features_num + len(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
@@ -347,12 +348,12 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     return score_epoch, loss.detach().cpu().numpy()
 
 
-def result_output(cfg, fold, train_fold_df, model_name, save_path, device):
+def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
     model.load_state_dict(torch.load(model_name))
     features_model = model.to(device)
 
-    ds = pf_dataset(cfg, train_fold_df, 'valid',
+    ds = pf_dataset(cfg, valid_fold_df, 'valid',
                     transforms=get_transforms(cfg, 'valid'))
 
     data_loader = DataLoader(
@@ -363,7 +364,7 @@ def result_output(cfg, fold, train_fold_df, model_name, save_path, device):
         pin_memory=True
     )
 
-    result_df = train_fold_df[['Id', 'kfold', 'Pawpularity']]
+    result_df = valid_fold_df[['Id', 'kfold', 'Pawpularity']]
 
     features_model.eval()
 
@@ -517,7 +518,7 @@ def main(cfg: DictConfig):
         torch.cuda.empty_cache()
 
         if cfg.save and cfg.result_output:
-            result_output(cfg, fold, train_fold_df,
+            result_output(cfg, fold, valid_fold_df,
                           model_name, save_path, device)
 
 
