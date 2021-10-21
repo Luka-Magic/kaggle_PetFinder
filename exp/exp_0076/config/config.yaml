@@ -14,7 +14,7 @@ save: False
 result_output: False
 
 ######   Loss   ########################################
-loss: RMSE # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+loss: RMSELoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
 gamma: 0. # FOCALLoss
 
 ##### Optimizer ########################################
