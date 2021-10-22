@@ -6,6 +6,7 @@ import cv2
 from tqdm.notebook import tqdm
 import os
 import math
+import sys
 
 
 def preprocess(data_path, phase):
@@ -68,4 +69,5 @@ def load_to_csv(num):
 
 
 if __name__ == '__main__':
-    load_to_csv(1)
+    args = sys.argv
+    load_to_csv(int(args[0]))
