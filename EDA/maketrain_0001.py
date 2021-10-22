@@ -7,6 +7,7 @@ from tqdm.notebook import tqdm
 import os
 import math
 
+
 def preprocess(data_path, phase):
     '''
     data_path: path of data
@@ -54,7 +55,7 @@ def preprocess(data_path, phase):
     add_df['aspect'] = aspect_list
 
     df = pd.concat([df, add_df], axis=1)
-    df = df.drop(['file_path'])
+    df = df.drop('file_path', axis=1)
     return df
 
 
@@ -65,6 +66,6 @@ def load_to_csv(num):
         data_path, 'train')
     processed_df.to_csv(os.path.join(data_path, f'train_{num}.csv'))
 
+
 if __name__ == '__main__':
     load_to_csv(1)
-    
