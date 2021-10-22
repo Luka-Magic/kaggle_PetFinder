@@ -66,6 +66,5 @@ def load_to_csv(num):
     processed_df.to_csv(os.path.join(data_path, f'train_{num}.csv'))
 
 if __name__ == '__main__':
-    print(os.getcwd())
     load_to_csv(1)
     
