@@ -27,8 +27,8 @@ class FOCALLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, input, target):
-        c0 = input ** self.gamma
-        c1 = (1. - input) ** self.gamma
         input = torch.sigmoid(input)
         input = torch.clamp(input, 1e-10, 1.-1e-10)
+        c0 = input ** self.gamma
+        c1 = (1. - input) ** self.gamma
         return torch.mean(- (c1 * target * torch.log(input) + c0 * (1 - target) * torch.log(1. - input)))
