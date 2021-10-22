@@ -130,7 +130,7 @@ class pf_model(nn.Module):
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k':
+        if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k' or cfg.model_arch == 'swin_base_patch4_window12_224_in22k':
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, cfg.features_num)
         elif cfg.model_arch == 'tf_efficientnet_b0':

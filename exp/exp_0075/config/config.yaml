@@ -15,11 +15,11 @@ result_output: False
 
 ######   Loss   ########################################
 loss: FOCALLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
-gamma: 1. # FOCALLoss
+gamma: 0.5 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 5e-4
+lr: 5e-6
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
