@@ -70,4 +70,4 @@ def load_to_csv(num):
 
 if __name__ == '__main__':
     args = sys.argv
-    load_to_csv(int(args[0]))
+    load_to_csv(args[0])
