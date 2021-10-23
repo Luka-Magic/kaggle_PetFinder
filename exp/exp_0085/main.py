@@ -203,7 +203,6 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
 
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
-        print(dense)
         dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
