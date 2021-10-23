@@ -1,7 +1,7 @@
 # Python Libraries
 from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
-from utils import make_columns
+from utils.make_columns import make_columns
 import warnings
 from omegaconf import DictConfig
 import hydra
