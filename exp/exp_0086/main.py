@@ -316,7 +316,7 @@ def preprocess(cfg, train_fold_df, valid_fold_df):
             train_fold_df[basic_columns]), columns=basic_columns)
         valid_fold_df[basic_columns] = pd.DataFrame(scale.transform(
             valid_fold_df[basic_columns]), columns=basic_columns)
-        return train_fold_df, valid_fold_df
+    return train_fold_df, valid_fold_df
 
 
 def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
