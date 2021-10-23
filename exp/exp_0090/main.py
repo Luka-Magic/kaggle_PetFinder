@@ -139,7 +139,7 @@ class pf_model_backbone(nn.Module):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(self.n_features, 128)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, x, dense):
@@ -220,7 +220,7 @@ class pf_model(nn.Module):
         self.backbone.reset_classifier(0)
         self.fc = nn.Linear(self.n_features, 128)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, x, dense):
