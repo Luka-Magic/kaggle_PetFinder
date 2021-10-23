@@ -1,7 +1,7 @@
 # Python Libraries
 from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
-from utils.make_columns import make_columns
+from utils.make_columns import make_columns, len_columns
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -141,7 +141,8 @@ class pf_model(nn.Module):
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(cfg.features_num + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(cfg.features_num +
+                             len_columns(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
