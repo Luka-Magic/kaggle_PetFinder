@@ -133,10 +133,10 @@ class pf_model(nn.Module):
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k' or cfg.model_arch == 'swin_base_patch4_window7_224_in22k':
+        if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, cfg.features_num)
-        elif cfg.model_arch == 'tf_efficientnet_b0':
+        elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
@@ -153,6 +153,92 @@ class pf_model(nn.Module):
         x = self.fc2(x)
         return x, features
 
+
+class HybridEmbed(nn.Module):
+    """ CNN Feature Map Embedding
+    Extract feature map from CNN, flatten, project to embedding dim.
+    """
+
+    def __init__(self, backbone, img_size=224, patch_size=1, feature_size=None, in_chans=3, embed_dim=768):
+        super().__init__()
+        assert isinstance(backbone, nn.Module)
+        img_size = (img_size, img_size)
+        patch_size = (patch_size, patch_size)
+        self.img_size = img_size
+        self.patch_size = patch_size
+        self.backbone = backbone
+        if feature_size is None:
+            with torch.no_grad():
+                # NOTE Most reliable way of determining output dims is to run forward pass
+                training = backbone.training
+                if training:
+                    backbone.eval()
+                o = self.backbone(torch.zeros(
+                    1, in_chans, img_size[0], img_size[1]))
+                if isinstance(o, (list, tuple)):
+                    # last feature if backbone outputs list/tuple of features
+                    o = o[-1]
+                feature_size = o.shape[-2:]
+                feature_dim = o.shape[1]
+                backbone.train(training)
+        else:
+            feature_size = (feature_size, feature_size)
+            if hasattr(self.backbone, 'feature_info'):
+                feature_dim = self.backbone.feature_info.channels()[-1]
+            else:
+                feature_dim = self.backbone.num_features
+        assert feature_size[0] % patch_size[0] == 0 and feature_size[1] % patch_size[1] == 0
+        self.grid_size = (
+            feature_size[0] // patch_size[0], feature_size[1] // patch_size[1])
+        self.num_patches = self.grid_size[0] * self.grid_size[1]
+        self.proj = nn.Conv2d(feature_dim, embed_dim,
+                              kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, x):
+        x = self.backbone(x)
+        if isinstance(x, (list, tuple)):
+            x = x[-1]  # last feature if backbone outputs list/tuple of features
+        x = self.proj(x).flatten(2).transpose(1, 2)
+        return x
+
+
+class pf_hybrid_model(nn.Module):
+    def __init__(self, cfg, pretrained=True):
+        super().__init__()
+        self.backbone = timm.create_model(cfg.backbone, pretrained=pretrained)
+        self.embedder = timm.create_model(
+            cfg.model_arch, features_only=True, out_indices=[2], pretrained=False)
+        weights = self.make_weight()
+        self.embedder.load_state_dict(weights)
+        self.backbone.patch_embed = HybridEmbed(
+            self.embedder, cfg.img_size, embed_dim=128)
+        self.n_features = self.backbone.head.in_features
+        self.backbone.reset_classifier(0)
+        self.fc = nn.Linear(self.n_features, 128)
+        self.dropout = nn.Dropout(0.1)
+        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
+        self.fc2 = nn.Linear(64, 1)
+
+    def forward(self, x, dense):
+        x = self.backbone(x)
+        x = self.fc(x)
+        x = self.dropout(x)
+        x = torch.cat([x, dense], dim=1)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return x
+
+    def make_weight(self):
+        embedder_path = os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{self.cfg.embedder_path}")
+        weight_dict = torch.load(embedder_path)
+        del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
+                    'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
+        for del_key in del_list:
+            del weight_dict[del_key]
+        for key in list(weight_dict.keys()):
+            weight_dict[key.replace('model.', '')] = weight_dict.pop(key)
+        return weight_dict
 
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
@@ -423,7 +509,7 @@ def main(cfg: DictConfig):
         elif cfg.optimizer == 'RAdam':
             optim = torch.optim.RAdam(
                 model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
-
+        
         if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
