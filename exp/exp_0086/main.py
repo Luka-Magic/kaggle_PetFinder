@@ -1,7 +1,7 @@
 # Python Libraries
 from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
-from utils import make_columns
+from utils.make_columns import make_columns, len_columns
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -141,7 +141,8 @@ class pf_model(nn.Module):
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(cfg.features_num + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(cfg.features_num +
+                             len_columns(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
@@ -315,7 +316,7 @@ def preprocess(cfg, train_fold_df, valid_fold_df):
             train_fold_df[basic_columns]), columns=basic_columns)
         valid_fold_df[basic_columns] = pd.DataFrame(scale.transform(
             valid_fold_df[basic_columns]), columns=basic_columns)
-    return train_fold_df, valid_fold_df
+        return train_fold_df, valid_fold_df
 
 
 def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
