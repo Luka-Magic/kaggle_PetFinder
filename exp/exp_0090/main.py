@@ -127,7 +127,7 @@ def get_transforms(cfg, phase):
     return albumentations.Compose(augs)
 
 
-class pf_model_original(nn.Module):
+class pf_model_backbone(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
         self.model = timm.create_model(
@@ -202,8 +202,13 @@ class HybridEmbed(nn.Module):
 class pf_model(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
-        backbone = pf_model_original(cfg, pretrained=False)
-        backbone.load_state_dict(torch.load(cfg.backbone_path))
+        save_path = os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), f"outputs")
+        self.embedder_path = os.path.join(save_path, cfg.embedder_path)
+        self.backbone_path = os.path.join(save_path, cfg.backbone_path)
+
+        backbone = pf_model_backbone(cfg, pretrained=False)
+        backbone.load_state_dict(torch.load(self.backbone_path))
         self.backbone = backbone.model
         self.embedder = timm.create_model(
             cfg.embedder, features_only=True, out_indices=[2], pretrained=False)
