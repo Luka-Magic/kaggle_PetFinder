@@ -420,6 +420,9 @@ def main(cfg: DictConfig):
         if cfg.optimizer == 'AdamW':
             optim = torch.optim.AdamW(
                 model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
+        elif cfg.optimizer == 'RAdam':
+            optim = torch.optim.RAdam(
+                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
 
         if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
