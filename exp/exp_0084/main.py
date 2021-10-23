@@ -336,16 +336,24 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds, features = features_model(imgs, dense)
         if step == 0:
             features_list = features.detach().cpu().numpy()
-            preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
+            if cfg.loss == 'BCEWithLogitsLoss':
+                preds_list = np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)
+            elif cfg.loss == 'MSELoss':
+                preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
         else:
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
-            preds_list = np.concatenate(
-                [preds_list, np.clip(preds.detach().cpu().numpy(), 1, 100)], axis=0)
+            if cfg.loss == 'BCEWithLogitsLoss':
+                preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
+            elif cfg.loss == 'MSELoss':
+                preds_list = np.concatenate([preds_list, np.clip(
+                    preds.detach().cpu().numpy(), 1, 100)], axis=0)
+
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
     return result_df
-
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):

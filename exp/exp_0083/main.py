@@ -347,6 +347,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     return score_epoch, loss.detach().cpu().numpy()
 
+
 def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
     model.load_state_dict(torch.load(model_name))
@@ -396,7 +397,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
-    result_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
+    return result_df
 
 
 @hydra.main(config_path='config', config_name='config')
@@ -526,8 +527,15 @@ def main(cfg: DictConfig):
         torch.cuda.empty_cache()
 
         if cfg.save and cfg.result_output:
-            result_output(cfg, fold, valid_fold_df,
-                          model_name, save_path, device)
+            if save_flag == False:
+                results_df = result_output(cfg, fold, valid_fold_df,
+                                           model_name, save_path, device)
+                save_flag = True
+            else:
+                results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
+                                                                  model_name, save_path, device)], axis=0)
+    if save_flag:
+        results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
 
 if __name__ == '__main__':
