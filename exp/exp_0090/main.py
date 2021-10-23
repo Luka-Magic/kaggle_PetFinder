@@ -223,14 +223,14 @@ class pf_model(nn.Module):
         self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
-    def forward(self, x, dense):
-        x = self.backbone(x)
-        x = self.fc(x)
-        x = self.dropout(x)
-        x = torch.cat([x, dense], dim=1)
+    def forward(self, input, dense):
+        features = self.backbone(input)
+        features = self.fc(features)
+        features = self.dropout(features)
+        x = torch.cat([features, dense], dim=1)
         x = self.fc1(x)
         x = self.fc2(x)
-        return x
+        return x, features
 
     def make_weight(self):
         weight_dict = torch.load(self.embedder_path)
