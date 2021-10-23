@@ -127,31 +127,28 @@ def get_transforms(cfg, phase):
     return albumentations.Compose(augs)
 
 
-class pf_model(nn.Module):
+class pf_model_original(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
         self.model = timm.create_model(
-            cfg.model_arch, pretrained=pretrained, in_chans=3)
-
-        if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
+            cfg.backbone, pretrained=pretrained, in_chans=3)
+        if re.search(r'vit*', cfg.backbone) or re.search(r'swin*', cfg.backbone):
             n_features = self.model.head.in_features
-            self.model.head = nn.Linear(n_features, cfg.features_num)
-        elif re.search(r'tf*', cfg.model_arch):
+            self.model.head = nn.Linear(n_features, 128)
+        elif cfg.backbone == 'tf_efficientnet_b2_ns':
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(
-                self.n_features, cfg.features_num)
+            self.model.classifier = nn.Linear(self.n_features, 128)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(cfg.features_num +
-                             len_columns(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(128 + len(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
-    def forward(self, input, dense):
-        features = self.model(input)
-        features = self.dropout(features)
-        x = torch.cat([features, dense], dim=1)
+    def forward(self, x, dense):
+        x = self.model(x)
+        x = self.dropout(x)
+        x = torch.cat([x, dense], dim=1)
         x = self.fc1(x)
         x = self.fc2(x)
-        return x, features
+        return x
 
 
 class HybridEmbed(nn.Module):
@@ -202,12 +199,15 @@ class HybridEmbed(nn.Module):
         return x
 
 
-class pf_hybrid_model(nn.Module):
+class pf_model(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
-        self.backbone = timm.create_model(cfg.backbone, pretrained=pretrained)
+        backbone = pf_model_original(cfg, pretrained=False)
+        backbone.load_state_dict(torch.load(
+            '../input/exp0084/swin_base_patch4_window7_224_in22k_fold_0.pth'))
+        self.backbone = backbone.model
         self.embedder = timm.create_model(
-            cfg.model_arch, features_only=True, out_indices=[2], pretrained=False)
+            cfg.embedder, features_only=True, out_indices=[2], pretrained=False)
         weights = self.make_weight()
         self.embedder.load_state_dict(weights)
         self.backbone.patch_embed = HybridEmbed(
@@ -229,9 +229,8 @@ class pf_hybrid_model(nn.Module):
         return x
 
     def make_weight(self):
-        embedder_path = os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{self.cfg.embedder_path}")
-        weight_dict = torch.load(embedder_path)
+        weight_dict = torch.load(
+            '../input/exp0067/tf_efficientnet_b2_ns_fold_0.pth')
         del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
                     'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
         for del_key in del_list:
@@ -239,6 +238,7 @@ class pf_hybrid_model(nn.Module):
         for key in list(weight_dict.keys()):
             weight_dict[key.replace('model.', '')] = weight_dict.pop(key)
         return weight_dict
+
 
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
@@ -509,7 +509,7 @@ def main(cfg: DictConfig):
         elif cfg.optimizer == 'RAdam':
             optim = torch.optim.RAdam(
                 model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
-        
+
         if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
                 optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
