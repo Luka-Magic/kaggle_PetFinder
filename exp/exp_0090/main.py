@@ -203,8 +203,7 @@ class pf_model(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
         backbone = pf_model_original(cfg, pretrained=False)
-        backbone.load_state_dict(torch.load(
-            '../input/exp0084/swin_base_patch4_window7_224_in22k_fold_0.pth'))
+        backbone.load_state_dict(torch.load(cfg.backbone_path))
         self.backbone = backbone.model
         self.embedder = timm.create_model(
             cfg.embedder, features_only=True, out_indices=[2], pretrained=False)
@@ -229,8 +228,7 @@ class pf_model(nn.Module):
         return x
 
     def make_weight(self):
-        weight_dict = torch.load(
-            '../input/exp0067/tf_efficientnet_b2_ns_fold_0.pth')
+        weight_dict = torch.load(self.embedder_path)
         del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
                     'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
         for del_key in del_list:
