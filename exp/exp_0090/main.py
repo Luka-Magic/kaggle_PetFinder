@@ -465,13 +465,12 @@ def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
-    save_path = os.path.join(
-        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-
     train_df, test_df = load_data(cfg)
     if cfg.save:
+        save_path = os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
         train_df.to_csv(os.path.join(save_path, 'train.csv'))
         test_df.to_csv(os.path.join(save_path, 'test.csv'))
     save_flag = False
