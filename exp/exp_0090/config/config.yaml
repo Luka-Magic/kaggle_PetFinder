@@ -14,8 +14,8 @@ backbone_path: exp_0084/swin_base_patch4_window7_224_in22k_fold_0.pth
 embedder_path: exp_0067/tf_efficientnet_b2_ns_fold_0.pth
 
 device: cuda:0
-save: False
-result_output: False
+save: True
+result_output: True
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
