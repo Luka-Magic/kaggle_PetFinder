@@ -25,6 +25,7 @@ from torch.cuda.amp import autocast, GradScaler
 import wandb
 import albumentations
 
+
 def load_data(cfg):
     data_path = cfg.data_path
     train_df = pd.read_csv(os.path.join(data_path, 'train.csv'))
@@ -130,7 +131,7 @@ class pf_model(nn.Module):
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k' or cfg.model_arch == 'swin_base_patch4_window7_224_in22k':
+        if cfg.model_arch == 'vit_base_resnet50_224_in21k' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k' or cfg.model_arch == 'swin_base_patch4_window7_224_in22k':
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, cfg.features_num)
         elif cfg.model_arch == 'tf_efficientnet_b0':
@@ -355,6 +356,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
     return result_df
 
+
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
     wandb.login()
@@ -490,7 +492,7 @@ def main(cfg: DictConfig):
         if cfg.save and cfg.result_output:
             if save_flag == False:
                 results_df = result_output(cfg, fold, valid_fold_df,
-                          model_name, save_path, device)
+                                           model_name, save_path, device)
                 save_flag = True
             else:
                 results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
