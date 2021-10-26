@@ -1,6 +1,7 @@
 # Python Libraries
 from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
+from utils.make_columns import make_columns, len_columns
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -25,6 +26,7 @@ from torch.cuda.amp import autocast, GradScaler
 import wandb
 import albumentations
 
+
 def load_data(cfg):
     data_path = cfg.data_path
     train_df = pd.read_csv(os.path.join(data_path, 'train.csv'))
@@ -43,9 +45,9 @@ def load_data(cfg):
     elif cfg.fold == 'StratifiedKFold':
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    elif cfg.fold == 'StratifiedGroupKFold':
-        folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values, groups=train_df.cluster.values)
+    # elif cfg.fold == 'StratifiedGroupKFold':
+    #     folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
+    #         X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values, groups=train_df.cluster.values)
     for fold, (train_index, valid_index) in enumerate(folds):
         train_df.loc[valid_index, 'kfold'] = fold
 
@@ -69,7 +71,7 @@ class pf_dataset(Dataset):
         self.phase = phase
         self.transforms = transforms
         self.output_label = output_label
-        self.dense_columns = cfg.dense_columns
+        self.dense_columns = make_columns(cfg.dense_columns)
 
     def __len__(self):
         return self.df.shape[0]
@@ -130,15 +132,16 @@ class pf_model(nn.Module):
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if cfg.model_arch == 'vit_large_patch32_384' or cfg.model_arch == 'swin_base_patch4_window12_384_in22k' or cfg.model_arch == 'swin_base_patch4_window7_224_in22k':
+        if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, cfg.features_num)
-        elif cfg.model_arch == 'tf_efficientnet_b0':
+        elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
         self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(cfg.features_num + len(cfg.dense_columns), 64)
+        self.fc1 = nn.Linear(cfg.features_num +
+                             len_columns(cfg.dense_columns), 64)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
@@ -355,6 +358,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
     return result_df
 
+
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
     wandb.login()
@@ -490,7 +494,7 @@ def main(cfg: DictConfig):
         if cfg.save and cfg.result_output:
             if save_flag == False:
                 results_df = result_output(cfg, fold, valid_fold_df,
-                          model_name, save_path, device)
+                                           model_name, save_path, device)
                 save_flag = True
             else:
                 results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
