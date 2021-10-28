@@ -378,10 +378,10 @@ def main(cfg: DictConfig):
 
     train_df, test_df = load_data(cfg)
     # if cfg.save:
-        # save_path = os.path.join(
-        #     '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
-        # if not os.path.exists(save_path):
-        #     os.mkdir(save_path)
+    # save_path = os.path.join(
+    #     '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+    # if not os.path.exists(save_path):
+    #     os.mkdir(save_path)
     #     train_df.to_csv(os.path.join(save_path, 'train.csv'))
     #     test_df.to_csv(os.path.join(save_path, 'test.csv'))
     # save_flag = False
@@ -404,15 +404,15 @@ def main(cfg: DictConfig):
             }
         }
         sweep_id = wandb.sweep(sweep_config, project=cfg.wandb_project,
-                    entity='luka-magic')
+                               entity='luka-magic')
 
         def train():
             run = wandb.init(config=cfg)
             cfg = wandb.config
             train_fold_df = train_df[train_df['kfold']
-                                    != fold].reset_index(drop=True)
+                                     != fold].reset_index(drop=True)
             valid_fold_df = train_df[train_df['kfold']
-                                    == fold].reset_index(drop=True)
+                                     == fold].reset_index(drop=True)
 
             train_fold_df, valid_fold_df = preprocess(
                 cfg, train_fold_df, valid_fold_df)
@@ -485,7 +485,7 @@ def main(cfg: DictConfig):
 
                 print(
                     f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-                    # if cfg.mix_p == 0:
+                # if cfg.mix_p == 0:
                 #     wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
                 #             'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
                 #             'epoch': epoch, 'lr': lr})
@@ -531,9 +531,10 @@ def main(cfg: DictConfig):
     #             else:
     #                 results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
     #                                                                 model_name, save_path, device)], axis=0)
-            wandb.log({'best_valid_rmse': best_valid_rmse, 'best_score_epoch': best_score_epoch})
+            wandb.log({'best_valid_rmse': best_valid_rmse,
+                      'best_score_epoch': best_score_epoch})
 
-        wandb.agend(sweep_id, train, count=10)
+        wandb.agent(sweep_id, train, count=10)
         wandb.finish()
     # if save_flag:
     #     results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
