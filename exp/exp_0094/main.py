@@ -407,8 +407,8 @@ def main(cfg: DictConfig):
                                entity='luka-magic')
 
         def train(cfg=cfg):
-            print('cfg:', cfg)
-            run = wandb.init(config=cfg)
+            default_cfg = cfg
+            run = wandb.init(config=default_cfg)
             cfg = wandb.config
             print('yes')
             print('cfg:', cfg)
