@@ -406,8 +406,7 @@ def main(cfg: DictConfig):
         sweep_id = wandb.sweep(sweep_config, project=cfg.wandb_project,
                                entity='luka-magic')
 
-        def train():
-            global cfg
+        def train(cfg=cfg):
             run = wandb.init(config=cfg)
             cfg = wandb.config
             train_fold_df = train_df[train_df['kfold']
