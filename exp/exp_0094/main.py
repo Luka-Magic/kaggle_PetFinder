@@ -409,6 +409,7 @@ def main(cfg: DictConfig):
         def train(cfg=cfg):
             run = wandb.init(config=cfg)
             cfg = wandb.config
+            print(cfg)
             train_fold_df = train_df[train_df['kfold']
                                      != fold].reset_index(drop=True)
             valid_fold_df = train_df[train_df['kfold']
