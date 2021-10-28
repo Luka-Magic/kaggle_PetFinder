@@ -407,6 +407,7 @@ def main(cfg: DictConfig):
                                entity='luka-magic')
 
         def train():
+            global cfg
             run = wandb.init(config=cfg)
             cfg = wandb.config
             train_fold_df = train_df[train_df['kfold']
