@@ -376,149 +376,167 @@ def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
-    save_path = os.path.join(
-        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-
     train_df, test_df = load_data(cfg)
-    if cfg.save:
-        train_df.to_csv(os.path.join(save_path, 'train.csv'))
-        test_df.to_csv(os.path.join(save_path, 'test.csv'))
-    save_flag = False
+    # if cfg.save:
+        # save_path = os.path.join(
+        #     '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+        # if not os.path.exists(save_path):
+        #     os.mkdir(save_path)
+    #     train_df.to_csv(os.path.join(save_path, 'train.csv'))
+    #     test_df.to_csv(os.path.join(save_path, 'test.csv'))
+    # save_flag = False
 
     for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
             continue
+        sweep_config = {
+            'name': 'exp_0094',
+            'method': 'bayes',
+            'metric': {
+                'name': 'best_valid_rmse',
+                'goal': 'minimize'
+            },
+            'parameters': {
+                'lr': {
+                    'min': 5e-6,
+                    'max': 1e-3
+                }
+            }
+        }
+        sweep_id = wandb.sweep(sweep_config, project=cfg.wandb_project,
+                    entity='luka-magic')
 
-        if len(cfg.use_fold) == 1:
-            wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                       name=os.getcwd().split('/')[-4], config=cfg)
-        else:
-            wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
+        def train():
+            run = wandb.init(config=cfg)
+            cfg = wandb.config
+            train_fold_df = train_df[train_df['kfold']
+                                    != fold].reset_index(drop=True)
+            valid_fold_df = train_df[train_df['kfold']
+                                    == fold].reset_index(drop=True)
 
-        train_fold_df = train_df[train_df['kfold']
-                                 != fold].reset_index(drop=True)
-        valid_fold_df = train_df[train_df['kfold']
-                                 == fold].reset_index(drop=True)
+            train_fold_df, valid_fold_df = preprocess(
+                cfg, train_fold_df, valid_fold_df)
 
-        train_fold_df, valid_fold_df = preprocess(
-            cfg, train_fold_df, valid_fold_df)
+            valid_rmse = {}
 
-        valid_rmse = {}
+            train_loader, valid_loader, _ = prepare_dataloader(
+                cfg, train_fold_df, valid_fold_df)
 
-        train_loader, valid_loader, _ = prepare_dataloader(
-            cfg, train_fold_df, valid_fold_df)
+            device = torch.device(cfg.device)
 
-        device = torch.device(cfg.device)
+            model = pf_model(cfg, pretrained=True).to(device)
 
-        model = pf_model(cfg, pretrained=True).to(device)
+            scaler = GradScaler()
 
-        scaler = GradScaler()
+            if cfg.optimizer == 'AdamW':
+                optim = torch.optim.AdamW(
+                    model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
+            elif cfg.optimizer == 'RAdam':
+                optim = torch.optim.RAdam(
+                    model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
 
-        if cfg.optimizer == 'AdamW':
-            optim = torch.optim.AdamW(
-                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
-        elif cfg.optimizer == 'RAdam':
-            optim = torch.optim.RAdam(
-                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
+            if cfg.scheduler == 'OneCycleLR':
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                    optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
+            elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
+                scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                    optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
-        if cfg.scheduler == 'OneCycleLR':
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
-        elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
+            if cfg.loss == 'MSELoss':
+                loss_fn = nn.MSELoss()
+            elif cfg.loss == 'BCEWithLogitsLoss':
+                loss_fn = nn.BCEWithLogitsLoss()
+            elif cfg.loss == 'RMSELoss':
+                loss_fn = RMSELoss()
+            elif cfg.loss == 'FOCALLoss':
+                loss_fn = FOCALLoss(gamma=cfg.gamma)
 
-        if cfg.loss == 'MSELoss':
-            loss_fn = nn.MSELoss()
-        elif cfg.loss == 'BCEWithLogitsLoss':
-            loss_fn = nn.BCEWithLogitsLoss()
-        elif cfg.loss == 'RMSELoss':
-            loss_fn = RMSELoss()
-        elif cfg.loss == 'FOCALLoss':
-            loss_fn = FOCALLoss(gamma=cfg.gamma)
+            best_score = {'score': 100, 'epoch': 0}
 
-        best_score = {'score': 100, 'epoch': 0}
+            for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
+                # Train Start
 
-        for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
-            # Train Start
-
-            if cfg.mix_p == 0:
-                train_start_time = time.time()
-                train_score_epoch, train_loss_epoch, lr = train_one_epoch(
-                    cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
-                train_finish_time = time.time()
-                print(
-                    f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
-            else:
-                train_start_time = time.time()
-                lr = train_one_epoch(
-                    cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
-                train_finish_time = time.time()
-                print(
-                    f'TRAIN {epoch}, mixup, time: {train_finish_time-train_start_time:.4f}')
-
-            # Valid Start
-
-            valid_start_time = time.time()
-
-            with torch.no_grad():
-                valid_score_epoch, valid_loss_epoch = valid_one_epoch(
-                    cfg, epoch, model, loss_fn, valid_loader, device)
-
-            valid_finish_time = time.time()
-
-            valid_rmse[epoch] = valid_score_epoch
-
-            print(
-                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-            if cfg.mix_p == 0:
-                wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-                           'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                           'epoch': epoch, 'lr': lr})
-            else:
-                wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                           'epoch': epoch, 'lr': lr})
-
-            if cfg.save:
-                model_name = os.path.join(
-                    save_path, f"{cfg.model_arch}_fold_{fold}.pth")
-                if best_score['score'] > valid_score_epoch:
-                    torch.save(model.state_dict(), model_name)
-
-                    best_score['score'] = valid_score_epoch
-                    best_score['epoch'] = epoch
+                if cfg.mix_p == 0:
+                    train_start_time = time.time()
+                    train_score_epoch, train_loss_epoch, lr = train_one_epoch(
+                        cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                    train_finish_time = time.time()
                     print(
-                        f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
+                        f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
                 else:
+                    train_start_time = time.time()
+                    lr = train_one_epoch(
+                        cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                    train_finish_time = time.time()
                     print(
-                        f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
+                        f'TRAIN {epoch}, mixup, time: {train_finish_time-train_start_time:.4f}')
 
-        # print Score
+                # Valid Start
 
-        valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
-        print('='*40)
-        print(f'Fold {fold}')
-        for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
-            print(f'No.{i+1}: {rmse:.5f} (epoch{epoch})')
-        print('='*40)
+                valid_start_time = time.time()
 
-        del model
-        gc.collect()
-        torch.cuda.empty_cache()
+                with torch.no_grad():
+                    valid_score_epoch, valid_loss_epoch = valid_one_epoch(
+                        cfg, epoch, model, loss_fn, valid_loader, device)
 
-        if cfg.save and cfg.result_output:
-            if save_flag == False:
-                results_df = result_output(cfg, fold, valid_fold_df,
-                                           model_name, save_path, device)
-                save_flag = True
-            else:
-                results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
-                                                                  model_name, save_path, device)], axis=0)
-    if save_flag:
-        results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
+                valid_finish_time = time.time()
+
+                valid_rmse[epoch] = valid_score_epoch
+
+                print(
+                    f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+                    # if cfg.mix_p == 0:
+                #     wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
+                #             'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                #             'epoch': epoch, 'lr': lr})
+                # else:
+                #     wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                #             'epoch': epoch, 'lr': lr})
+
+                # if cfg.save:
+                #     model_name = os.path.join(
+                #         save_path, f"{cfg.model_arch}_fold_{fold}.pth")
+                #     if best_score['score'] > valid_score_epoch:
+                #         torch.save(model.state_dict(), model_name)
+
+                #         best_score['score'] = valid_score_epoch
+                #         best_score['epoch'] = epoch
+                #         print(
+                #             f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
+                #     else:
+                #         print(
+                #             f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
+
+            # print Score
+
+            valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
+            print('='*40)
+            print(f'Fold {fold}')
+            for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
+                if i == 0:
+                    best_score_epoch = epoch
+                    best_valid_rmse = rmse
+                print(f'No.{i+1}: {rmse:.5f} (epoch{epoch})')
+            print('='*40)
+
+            del model
+            gc.collect()
+            torch.cuda.empty_cache()
+
+    #         if cfg.save and cfg.result_output:
+    #             if save_flag == False:
+    #                 results_df = result_output(cfg, fold, valid_fold_df,
+    #                                         model_name, save_path, device)
+    #                 save_flag = True
+    #             else:
+    #                 results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
+    #                                                                 model_name, save_path, device)], axis=0)
+            wandb.log({'best_valid_rmse': best_valid_rmse, 'best_score_epoch': best_score_epoch})
+
+        wandb.agend(sweep_id, train, count=10)
+        wandb.finish()
+    # if save_flag:
+    #     results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
 
 if __name__ == '__main__':

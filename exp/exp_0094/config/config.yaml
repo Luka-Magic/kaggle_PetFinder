@@ -1,6 +1,6 @@
 #####   BASIC   ########################################
 data_path: /content/drive/MyDrive/kaggle_PetFinder/data
-wandb_project: kaggle_PF
+wandb_project: kaggle_PF_sweep
 seed: 77
 epoch: 10
 fold: StratifiedKFold
