@@ -1,6 +1,6 @@
 #####   BASIC   ########################################
 data_path: /content/drive/MyDrive/kaggle_PetFinder/data
-wandb_project: kaggle_PF_sweep
+wandb_project: kaggle_PF
 seed: 77
 epoch: 10
 fold: StratifiedKFold
@@ -22,7 +22,7 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 5e-6
+lr: 5e-5
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
