@@ -13,16 +13,16 @@ result_output: True
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
-dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
+dense_columns: ['original', 'basic']
 features_num: 128
 
 ######   Loss   ########################################
-loss: MSELoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
 gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 5e-5
+lr: 5e-6
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
