@@ -12,7 +12,7 @@ save: True
 result_output: True
 
 ######   Features   ####################################
-train_csv: 'train' # {train_csv}.csv
+train_csv: 'train_1' # {train_csv}.csv
 dense_columns: ['original', 'basic']
 features_num: 128
 
