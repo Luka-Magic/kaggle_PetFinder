@@ -143,6 +143,7 @@ class pf_model(nn.Module):
         self.dropout = nn.Dropout(0.1)
         self.fc1 = nn.Linear(cfg.features_num +
                              len_columns(cfg.dense_columns), 64)
+        self.relu = nn.ReLU()
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
@@ -150,6 +151,7 @@ class pf_model(nn.Module):
         features = self.dropout(features)
         x = torch.cat([features, dense], dim=1)
         x = self.fc1(x)
+        x = self.relu(x)
         x = self.fc2(x)
         return x, features
 
@@ -364,7 +366,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                     preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
             elif cfg.loss == 'MSELoss':
                 preds_list = np.concatenate([preds_list,
-                    preds.detach().cpu().numpy()], axis=0)
+                                             preds.detach().cpu().numpy()], axis=0)
 
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
