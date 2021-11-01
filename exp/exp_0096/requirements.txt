@@ -1,5 +1,5 @@
 timm
-torch
 hydra-core
 wandb
 albumentations
+torch==1.10.0
