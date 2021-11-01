@@ -140,10 +140,11 @@ class pf_model(nn.Module):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
-        self.dropout = nn.Dropout(0.1)
+        self.dropout1 = nn.Dropout(0.1)
         self.fc1 = nn.Linear(cfg.features_num +
                              len_columns(cfg.dense_columns), 64)
         self.relu = nn.ReLU()
+        self.dropout2 = nn.Dropout(0.1)
         self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
@@ -152,6 +153,7 @@ class pf_model(nn.Module):
         x = torch.cat([features, dense], dim=1)
         x = self.fc1(x)
         x = self.relu(x)
+        x = self.dropout2(x)
         x = self.fc2(x)
         return x, features
 
