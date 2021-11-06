@@ -218,8 +218,6 @@ class pf_model(nn.Module):
             self.embedder, cfg.img_size, embed_dim=128)
         self.n_features = self.backbone.head.in_features
         self.backbone.reset_classifier(0)
-        self.backbone.load_state_dict(torch.load(os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_0010000.pth')))
         self.fc = nn.Linear(self.n_features, 128)
         self.dropout = nn.Dropout(0.1)
         self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
@@ -234,7 +232,7 @@ class pf_model(nn.Module):
         x = self.fc2(x)
         return x, features
 
-    def make_weight(self):
+    # def make_weight(self):
         # weight_dict = torch.load(self.embedder_path)
         # # del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
         # #             'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
@@ -504,6 +502,9 @@ def main(cfg: DictConfig):
         device = torch.device(cfg.device)
 
         model = pf_model(cfg, pretrained=True)
+
+        model.load_state_dict(torch.load(os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_0010000.pth')), strict=False)
         model = model.to(device)
 
         scaler = GradScaler()
