@@ -502,7 +502,7 @@ def main(cfg: DictConfig):
         device = torch.device(cfg.device)
 
         model = pf_model(cfg, pretrained=True)
-        model.load_state_dict(torch.load(os.path.join(
+        model.backbone.load_state_dict(torch.load(os.path.join(
             '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_0010000.pth')))
         model = model.to(device)
 
