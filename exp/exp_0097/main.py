@@ -503,11 +503,11 @@ def main(cfg: DictConfig):
 
         model = pf_model(cfg, pretrained=True)
 
-        # weight_dict = torch.load(os.path.join(
-        #     '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_dino_0010000.pth'))
-        # for key in list(weight_dict.keys()):
-        #     weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
-        # model.load_state_dict(weight_dict, strict=False)
+        weight_dict = torch.load(os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_dino_0010000.pth'))
+        for key in list(weight_dict.keys()):
+            weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
+        model.load_state_dict(weight_dict, strict=False)
 
         model = model.to(device)
 
