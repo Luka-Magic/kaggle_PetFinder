@@ -503,8 +503,12 @@ def main(cfg: DictConfig):
 
         model = pf_model(cfg, pretrained=True)
 
-        model.load_state_dict(torch.load(os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_dino_0010000.pth')))
+        weight_dict = torch.load(os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_dino_0010000.pth'))
+        for key in list(weight_dict.keys()):
+            weight_dict[key.replace('backbone.', '')] = weight_dict.pop(key)
+        model.load_state_dict(weight_dict)
+
         model = model.to(device)
 
         scaler = GradScaler()
