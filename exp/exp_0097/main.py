@@ -208,16 +208,18 @@ class pf_model(nn.Module):
         self.backbone_path = os.path.join(save_path, cfg.backbone_path)
 
         backbone = pf_model_backbone(cfg, pretrained=False)
-        backbone.load_state_dict(torch.load(self.backbone_path))
+        # backbone.load_state_dict(torch.load(self.backbone_path))
         self.backbone = backbone.model
         self.embedder = timm.create_model(
             cfg.embedder, features_only=True, out_indices=[2], pretrained=False)
-        weights = self.make_weight()
-        self.embedder.load_state_dict(weights)
+        # weights = self.make_weight()
+        # self.embedder.load_state_dict(weights)
         self.backbone.patch_embed = HybridEmbed(
             self.embedder, cfg.img_size, embed_dim=128)
         self.n_features = self.backbone.head.in_features
         self.backbone.reset_classifier(0)
+        self.backbone.load_state_dict(torch.load(os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_0010000.pth')))
         self.fc = nn.Linear(self.n_features, 128)
         self.dropout = nn.Dropout(0.1)
         self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
@@ -233,14 +235,14 @@ class pf_model(nn.Module):
         return x, features
 
     def make_weight(self):
-        weight_dict = torch.load(self.embedder_path)
-        del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
-                    'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
-        for del_key in del_list:
-            del weight_dict[del_key]
-        for key in list(weight_dict.keys()):
-            weight_dict[key.replace('model.', '')] = weight_dict.pop(key)
-        return weight_dict
+        # weight_dict = torch.load(self.embedder_path)
+        # # del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
+        # #             'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
+        # for del_key in del_list:
+        #     del weight_dict[del_key]
+        # for key in list(weight_dict.keys()):
+        #     weight_dict[key.replace('model.', '')] = weight_dict.pop(key)
+        # return weight_dict
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -502,8 +504,6 @@ def main(cfg: DictConfig):
         device = torch.device(cfg.device)
 
         model = pf_model(cfg, pretrained=True)
-        model.backbone.load_state_dict(torch.load(os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_0010000.pth')))
         model = model.to(device)
 
         scaler = GradScaler()
