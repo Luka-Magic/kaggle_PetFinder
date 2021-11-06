@@ -28,14 +28,14 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 1e-5
+lr: 5e-5
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
 
 ##### Scheduler ########################################
 scheduler: CosineAnnealingWarmRestarts # OneCycleLR
-T_0: 10 # CAWR
+T_0: ${epoch}  # CAWR
 T_mult: 2 # CAWR
 eta_min: 1e-9 # CAWR
 
