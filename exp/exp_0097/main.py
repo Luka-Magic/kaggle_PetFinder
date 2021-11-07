@@ -510,9 +510,9 @@ def main(cfg: DictConfig):
         model.load_state_dict(weight_dict, strict=False)
 
         if cfg.embedder_freeze:
-            for param, name in zip(model.parameters(), model.state_dict().keys()):
-                if 'patch_embed' in name:
-                    param.require_grad = False
+            for name, param in model.named_parameters():
+                if re.search('patch_embed', name):
+                    param.requires_grad = False
 
         model = model.to(device)
 
