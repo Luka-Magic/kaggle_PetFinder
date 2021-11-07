@@ -2,7 +2,7 @@
 data_path: /content/drive/MyDrive/kaggle_PetFinder/data
 wandb_project: kaggle_PF
 seed: 77
-epoch: 10
+epoch: 20
 fold: StratifiedKFold
 fold_num: 10
 use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -34,18 +34,18 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 5e-6
+lr: 1e-5
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
 
 ##### Scheduler ########################################
-scheduler: CosineAnnealingWarmRestarts # OneCycleLR
+scheduler: OneCycleLR # OneCycleLR
 T_0: ${epoch}  # CAWR
 T_mult: 2 # CAWR
 eta_min: 1e-9 # CAWR
 
-pct_start: 0.3 # OCLR
+pct_start: 0.1 # OCLR
 div_factor: 25. # OCLR
 final_div_factor: 1000. # OCLR
 
