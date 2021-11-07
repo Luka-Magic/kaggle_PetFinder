@@ -507,7 +507,7 @@ def main(cfg: DictConfig):
             '/'.join(os.getcwd().split('/')[:-6]), 'outputs_dino/dino_0002/teacher_0150000.pth'))
         for key in list(weight_dict.keys()):
             weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
-        model.load_state_dict(weight_dict, strict=False)
+        model.load_state_dict(weight_dict)
 
         model = model.to(device)
 
