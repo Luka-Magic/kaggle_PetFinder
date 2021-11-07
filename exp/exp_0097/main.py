@@ -508,8 +508,11 @@ def main(cfg: DictConfig):
         for key in list(weight_dict.keys()):
             weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
         model.load_state_dict(weight_dict, strict=False)
+
         if cfg.embedder_freeze:
-            pass
+            for param, name in zip(model.parameters(), model.state_dict().keys()):
+                if 'patch_embed' in name:
+                    param.require_grad = False
 
         model = model.to(device)
 
