@@ -504,7 +504,7 @@ def main(cfg: DictConfig):
         model = pf_model(cfg, pretrained=True)
 
         weight_dict = torch.load(os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), 'kaggle_PetFinder_dino/outputs/dino_0001_dino_0010000.pth'))
+            '/'.join(os.getcwd().split('/')[:-6]), 'outputs_dino/dino_0002/teacher_0150000.pth'))
         for key in list(weight_dict.keys()):
             weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
         model.load_state_dict(weight_dict, strict=False)
