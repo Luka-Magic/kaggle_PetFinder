@@ -85,9 +85,9 @@ class pf_dataset(Dataset):
 
         h, w, _ = img_rgb.shape
         h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
-        if self.phase == 'valid' or 'train':
-            h_dis, w_dis = max((h - w)//2, 0), max((w - h)//2, 0)
-            img_rgb = img_rgb[h_dis:h-h_dis, w_dis:w-w_dis, :]
+        # if self.phase == 'valid' or self.phase == 'train':
+        h_dis, w_dis = max((h - w)//2, 0), max((w - h)//2, 0)
+        img_rgb = img_rgb[h_dis:h-h_dis, w_dis:w-w_dis, :]
 
         if self.cfg.padding == 'BORDER_WRAP':
             img_rgb = cv2.copyMakeBorder(
