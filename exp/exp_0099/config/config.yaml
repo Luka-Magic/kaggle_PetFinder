@@ -19,7 +19,7 @@ embedder: tf_efficientnet_b2_ns
 backbone_path: exp_0084/swin_base_patch4_window7_224_in22k_fold_0.pth
 embedder_path: exp_0067/tf_efficientnet_b2_ns_fold_0.pth
 dino_exp: 2
-dino_img_num: 91600
+dino_img_num: 916000
 
 embedder_freeze: False
 
