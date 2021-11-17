@@ -504,13 +504,17 @@ def main(cfg: DictConfig):
 
         model = pf_model(cfg, pretrained=True)
 
-        weight_dict = torch.load(os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f'outputs_dino/dino_{str(cfg.dino_exp).zfill(4)}/teacher_{str(cfg.dino_img_num).zfill(7)}.pth'))
-        for key in list(weight_dict.keys()):
-            weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
-        model.load_state_dict(weight_dict, strict=False)
+        # weight_dict = torch.load(os.path.join(
+        #     '/'.join(os.getcwd().split('/')[:-6]), f'outputs_dino/dino_{str(cfg.dino_exp).zfill(4)}/teacher_{str(cfg.dino_img_num).zfill(7)}.pth'))
+        # for key in list(weight_dict.keys()):
+        #     weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
+        # model.load_state_dict(weight_dict, strict=False)
+
         for name, param in model.named_parameters():
             param.requires_grad = False
+
+        model.load_state_dict(torch.load(os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), f'outputs/{cfg.hybrid_model_path}')))
 
         model = model.to(device)
 

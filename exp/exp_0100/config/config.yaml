@@ -9,6 +9,7 @@ use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 model_arch: hybrid_effnetb2ns_swinbase224
 
+
 device: cuda:0
 save: True
 result_output: True
@@ -21,9 +22,11 @@ embedder_path: exp_0091/tf_efficientnet_b2_ns_fold_0.pth
 dino_exp: 2
 dino_img_num: 1200000
 
+hybrid_model_path: exp_0098/hybrid_effnetb2ns_swinbase224_fold_0.pth
+
 freeze_fc_epoch: 0
-freeze_embedder_epoch: 20
-freeze_backbone_epoch: 20
+freeze_embedder_epoch: 0
+freeze_backbone_epoch: 0
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
@@ -36,7 +39,7 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 1e-4
+lr: 1e-5
 weight_decay: 1e-2
 beta1: 0.5
 beta2: 0.999
