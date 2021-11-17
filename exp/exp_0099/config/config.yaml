@@ -19,7 +19,7 @@ embedder: tf_efficientnet_b2_ns
 backbone_path: exp_0084/swin_base_patch4_window7_224_in22k_fold_0.pth
 embedder_path: exp_0067/tf_efficientnet_b2_ns_fold_0.pth
 dino_exp: 2
-dino_img_num: 916000
+dino_img_num: 1200000
 
 embedder_freeze: False
 
@@ -34,7 +34,7 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 1e-5
+lr: 1e-6
 weight_decay: 1e-2
 beta1: 0.5
 beta2: 0.999
@@ -61,8 +61,8 @@ num_workers: 2
 
 ##### MixUp #############################################
 mix_p: 0.5
-init_nomix_epoch: 3
-last_nomix_epoch: 3
+init_nomix_epoch: 1
+last_nomix_epoch: 1
 
 ##### Data Augmentation #################################
 padding: None
