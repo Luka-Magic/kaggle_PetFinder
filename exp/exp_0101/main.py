@@ -1,5 +1,5 @@
 # Python Libraries
-from utils.loss import FOCALLoss, RMSELoss
+from utils.loss import FOCALLoss, RMSELoss, MSPELoss
 from utils.mixaug import mixup, cutmix
 from utils.make_columns import make_columns, len_columns
 import warnings
@@ -85,9 +85,9 @@ class pf_dataset(Dataset):
 
         h, w, _ = img_rgb.shape
         h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
-        # if self.phase == 'valid' or self.phase == 'train':
-        h_dis, w_dis = max((h - w)//2, 0), max((w - h)//2, 0)
-        img_rgb = img_rgb[h_dis:h-h_dis, w_dis:w-w_dis, :]
+        if self.phase == 'valid':
+            h_dis, w_dis = max((h - w)//2, 0), max((w - h)//2, 0)
+            img_rgb = img_rgb[h_dis:h-h_dis, w_dis:w-w_dis, :]
 
         if self.cfg.padding == 'BORDER_WRAP':
             img_rgb = cv2.copyMakeBorder(
@@ -127,122 +127,31 @@ def get_transforms(cfg, phase):
     return albumentations.Compose(augs)
 
 
-class pf_model_backbone(nn.Module):
-    def __init__(self, cfg, pretrained=True):
-        super().__init__()
-        self.model = timm.create_model(
-            cfg.backbone, pretrained=pretrained, in_chans=3)
-        if re.search(r'vit*', cfg.backbone) or re.search(r'swin*', cfg.backbone):
-            n_features = self.model.head.in_features
-            self.model.head = nn.Linear(n_features, 128)
-        elif cfg.backbone == 'tf_efficientnet_b2_ns':
-            self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(self.n_features, 128)
-        self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
-        self.fc2 = nn.Linear(64, 1)
-
-    def forward(self, x, dense):
-        x = self.model(x)
-        x = self.dropout(x)
-        x = torch.cat([x, dense], dim=1)
-        x = self.fc1(x)
-        x = self.fc2(x)
-        return x
-
-
-class HybridEmbed(nn.Module):
-    """ CNN Feature Map Embedding
-    Extract feature map from CNN, flatten, project to embedding dim.
-    """
-
-    def __init__(self, backbone, img_size=224, patch_size=1, feature_size=None, in_chans=3, embed_dim=768):
-        super().__init__()
-        assert isinstance(backbone, nn.Module)
-        img_size = (img_size, img_size)
-        patch_size = (patch_size, patch_size)
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.backbone = backbone
-        if feature_size is None:
-            with torch.no_grad():
-                # NOTE Most reliable way of determining output dims is to run forward pass
-                training = backbone.training
-                if training:
-                    backbone.eval()
-                o = self.backbone(torch.zeros(
-                    1, in_chans, img_size[0], img_size[1]))
-                if isinstance(o, (list, tuple)):
-                    # last feature if backbone outputs list/tuple of features
-                    o = o[-1]
-                feature_size = o.shape[-2:]
-                feature_dim = o.shape[1]
-                backbone.train(training)
-        else:
-            feature_size = (feature_size, feature_size)
-            if hasattr(self.backbone, 'feature_info'):
-                feature_dim = self.backbone.feature_info.channels()[-1]
-            else:
-                feature_dim = self.backbone.num_features
-        assert feature_size[0] % patch_size[0] == 0 and feature_size[1] % patch_size[1] == 0
-        self.grid_size = (
-            feature_size[0] // patch_size[0], feature_size[1] // patch_size[1])
-        self.num_patches = self.grid_size[0] * self.grid_size[1]
-        self.proj = nn.Conv2d(feature_dim, embed_dim,
-                              kernel_size=patch_size, stride=patch_size)
-
-    def forward(self, x):
-        x = self.backbone(x)
-        if isinstance(x, (list, tuple)):
-            x = x[-1]  # last feature if backbone outputs list/tuple of features
-        x = self.proj(x).flatten(2).transpose(1, 2)
-        return x
-
-
 class pf_model(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
-        save_path = os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f"outputs")
-        self.embedder_path = os.path.join(save_path, cfg.embedder_path)
-        self.backbone_path = os.path.join(save_path, cfg.backbone_path)
+        self.model = timm.create_model(
+            cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        backbone = pf_model_backbone(cfg, pretrained=False)
-        # backbone.load_state_dict(torch.load(self.backbone_path))
-        self.backbone = backbone.model
-        self.embedder = timm.create_model(
-            cfg.embedder, features_only=True, out_indices=[2], pretrained=False)
-        # weights = self.make_weight()
-        # self.embedder.load_state_dict(weights)
-        self.backbone.patch_embed = HybridEmbed(
-            self.embedder, cfg.img_size, embed_dim=128)
-        self.n_features = self.backbone.head.in_features
-        self.backbone.reset_classifier(0)
-        print(self.n_features)
-        self.fc1 = nn.Linear(self.n_features, self.n_features // 2)
-        self.dropout1 = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(self.n_features // 2, self.n_features // 4)
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc3 = nn.Linear(self.n_features // 4, 1)
+        if re.search(r'vit*', cfg.backbone) or re.search(r'swin*', cfg.backbone):
+            n_features = self.model.head.in_features
+            self.model.head = nn.Linear(n_features, cfg.features_num)
+        elif re.search(r'tf_*', cfg.backbone):
+            self.n_features = self.model.classifier.in_features
+            self.model.classifier = nn.Linear(
+                self.n_features, cfg.features_num)
+        self.dropout = nn.Dropout(0.1)
+        self.fc1 = nn.Linear(cfg.features_num +
+                             len_columns(cfg.dense_columns), 64)
+        self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
-        x = self.backbone(input)
+        features = self.model(input)
+        features = self.dropout(features)
+        x = torch.cat([features, dense], dim=1)
         x = self.fc1(x)
-        x = self.dropout1(x)
         x = self.fc2(x)
-        x = self.dropout2(x)
-        x = self.fc3(x)
-        return x, torch.randn(1, 128)
-
-    # def make_weight(self):
-        # weight_dict = torch.load(self.embedder_path)
-        # # del_list = ['model.conv_head.weight', 'model.bn2.weight', 'model.bn2.bias', 'model.bn2.running_mean', 'model.bn2.running_var',
-        # #             'model.bn2.num_batches_tracked', 'model.classifier.weight', 'model.classifier.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
-        # for del_key in del_list:
-        #     del weight_dict[del_key]
-        # for key in list(weight_dict.keys()):
-        #     weight_dict[key.replace('model.', '')] = weight_dict.pop(key)
-        # return weight_dict
+        return x, features
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -322,7 +231,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
                 preds_all += [np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)]
                 labels_all += [labels.detach().cpu().numpy() * 100]
-            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
                 preds_all += [np.clip(preds.detach().cpu().numpy(), 1, 100)]
                 labels_all += [labels.detach().cpu().numpy()]
 
@@ -376,7 +285,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             preds = np.clip(torch.sigmoid(
                 preds).detach().cpu().numpy() * 100, 1, 100)
             labels = labels.detach().cpu().numpy() * 100
-        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
             preds = np.clip(preds.detach().cpu().numpy(), 1, 100)
             labels = labels.detach().cpu().numpy()
 
@@ -442,18 +351,18 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds, features = features_model(imgs, dense)
         if step == 0:
             features_list = features.detach().cpu().numpy()
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_list = np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)
-            elif cfg.loss == 'MSELoss':
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
                 preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
         else:
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
-            elif cfg.loss == 'MSELoss':
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
                 preds_list = np.concatenate([preds_list, np.clip(
                     preds.detach().cpu().numpy(), 1, 100)], axis=0)
 
@@ -467,12 +376,13 @@ def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
+    save_path = os.path.join(
+        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+
     train_df, test_df = load_data(cfg)
     if cfg.save:
-        save_path = os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
-        if not os.path.exists(save_path):
-            os.mkdir(save_path)
         train_df.to_csv(os.path.join(save_path, 'train.csv'))
         test_df.to_csv(os.path.join(save_path, 'test.csv'))
     save_flag = False
@@ -503,17 +413,7 @@ def main(cfg: DictConfig):
 
         device = torch.device(cfg.device)
 
-        model = pf_model(cfg, pretrained=True)
-
-        weight_dict = torch.load(os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f'outputs_dino/dino_{str(cfg.dino_exp).zfill(4)}/teacher_{str(cfg.dino_img_num).zfill(7)}.pth'))
-        for key in list(weight_dict.keys()):
-            weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
-        model.load_state_dict(weight_dict, strict=False)
-        for name, param in model.named_parameters():
-            param.requires_grad = False
-
-        model = model.to(device)
+        model = pf_model(cfg, pretrained=True).to(device)
 
         scaler = GradScaler()
 
@@ -539,28 +439,13 @@ def main(cfg: DictConfig):
             loss_fn = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
             loss_fn = FOCALLoss(gamma=cfg.gamma)
+        elif cfg.loss == 'MSPELoss':
+            loss_fn = MSPELoss()
 
         best_score = {'score': 100, 'epoch': 0}
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
-
-            # params freeze
-            # ## except fc
-            if cfg.freeze_fc_epoch <= epoch:
-                for name, param in model.named_parameters():
-                    if not re.search('backbone', name):
-                        param.requires_grad = True
-            # embed freeze
-            if cfg.freeze_embedder_epoch <= epoch:
-                for name, param in model.named_parameters():
-                    if re.search('patch_embed', name):
-                        param.requires_grad = True
-            # backbone freeze
-            elif cfg.freeze_backbone_epoch <= epoch:
-                for name, param in model.named_parameters():
-                    if re.search('layers', name):
-                        param.requires_grad = True
 
             if cfg.mix_p == 0:
                 train_start_time = time.time()
