@@ -218,12 +218,11 @@ class pf_model(nn.Module):
             self.embedder, cfg.img_size, embed_dim=128)
         self.n_features = self.backbone.head.in_features
         self.backbone.reset_classifier(0)
-        print(self.n_features)
-        self.fc1 = nn.Linear(self.n_features, self.n_features // 2)
+        self.fc1 = nn.Linear(self.n_features, 256)
         self.dropout1 = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(self.n_features // 2, self.n_features // 4)
+        self.fc2 = nn.Linear(256, 128)
         self.dropout2 = nn.Dropout(0.5)
-        self.fc3 = nn.Linear(self.n_features // 4, 1)
+        self.fc3 = nn.Linear(128, 1)
 
     def forward(self, input, dense):
         x = self.backbone(input)
