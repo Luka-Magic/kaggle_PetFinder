@@ -133,10 +133,10 @@ class pf_model(nn.Module):
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
-        if re.search(r'vit*', cfg.backbone) or re.search(r'swin*', cfg.backbone):
+        if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, cfg.features_num)
-        elif re.search(r'tf_*', cfg.backbone):
+        elif re.search(r'tf_*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
