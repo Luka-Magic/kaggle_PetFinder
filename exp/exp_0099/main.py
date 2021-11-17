@@ -222,7 +222,7 @@ class pf_model(nn.Module):
 
     def forward(self, input, dense):
         x = self.backbone(input)
-        x = self.fc2(x)
+        x = self.fc(x)
         features = torch.randn(1, 128)
         return x, features
 
