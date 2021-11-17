@@ -218,18 +218,12 @@ class pf_model(nn.Module):
             self.embedder, cfg.img_size, embed_dim=128)
         self.n_features = self.backbone.head.in_features
         self.backbone.reset_classifier(0)
-        self.fc = nn.Linear(self.n_features, 128)
-        self.dropout = nn.Dropout(0.1)
-        self.fc1 = nn.Linear(128 + len_columns(cfg.dense_columns), 64)
-        self.fc2 = nn.Linear(64, 1)
+        self.fc = nn.Linear(self.n_features, 1)
 
     def forward(self, input, dense):
-        features = self.backbone(input)
-        features = self.fc(features)
-        features = self.dropout(features)
-        x = torch.cat([features, dense], dim=1)
-        x = self.fc1(x)
+        x = self.backbone(input)
         x = self.fc2(x)
+        features = torch.randn(1, 128)
         return x, features
 
     # def make_weight(self):
