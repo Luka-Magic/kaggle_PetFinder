@@ -6,7 +6,7 @@ epoch: 10
 fold: StratifiedKFold
 fold_num: 10
 use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-model_arch: swin_base_patch4_window12_384_in22k
+model_arch: swin_base_patch4_window7_224_in22k
 device: cuda:0
 save: True
 result_output: True
