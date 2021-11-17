@@ -218,14 +218,19 @@ class pf_model(nn.Module):
             self.embedder, cfg.img_size, embed_dim=128)
         self.n_features = self.backbone.head.in_features
         self.backbone.reset_classifier(0)
-        self.fc1 = nn.Linear(self.n_features, 512)
-        self.dropout = nn.Dropout(0.7)
-        self.fc2 = nn.Linear(512, 1)
+        self.fc1 = nn.Linear(self.n_features, 256)
+        self.dropout1 = nn.Dropout(0.5)
+        self.fc2 = nn.Linear(256, 128)
+        self.dropout2 = nn.Dropout(0.5)
+        self.fc3 = nn.Linear(128, 1)
 
     def forward(self, input, dense):
         x = self.backbone(input)
         x = self.fc1(x)
+        x = self.dropout1(x)
         x = self.fc2(x)
+        x = self.dropout2(x)
+        x = self.fc3(x)
         return x, torch.randn(1, 128)
 
     # def make_weight(self):
@@ -504,11 +509,8 @@ def main(cfg: DictConfig):
         for key in list(weight_dict.keys()):
             weight_dict[re.sub('^backbone.', '', key)] = weight_dict.pop(key)
         model.load_state_dict(weight_dict, strict=False)
-
-        if cfg.embedder_freeze:
-            for name, param in model.named_parameters():
-                if re.search('backbone', name):
-                    param.requires_grad = False
+        for name, param in model.named_parameters():
+            param.requires_grad = False
 
         model = model.to(device)
 
@@ -541,6 +543,23 @@ def main(cfg: DictConfig):
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
+
+            # params freeze
+            # ## except fc
+            if cfg.freeze_fc_epoch <= epoch:
+                for name, param in model.named_parameters():
+                    if not re.search('backbone', name):
+                        param.requires_grad = True
+            # embed freeze
+            if cfg.freeze_embedder_epoch <= epoch:
+                for name, param in model.named_parameters():
+                    if re.search('patch_embed', name):
+                        param.requires_grad = True
+            # backbone freeze
+            elif cfg.freeze_backbone_epoch <= epoch:
+                for name, param in model.named_parameters():
+                    if re.search('layers', name):
+                        param.requires_grad = True
 
             if cfg.mix_p == 0:
                 train_start_time = time.time()

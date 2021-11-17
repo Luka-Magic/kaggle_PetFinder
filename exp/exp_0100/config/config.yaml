@@ -22,8 +22,8 @@ dino_exp: 2
 dino_img_num: 1200000
 
 freeze_fc_epoch: 0
-freeze_embedder_epoch: 10
-freeze_backbone_epoch: 10
+freeze_embedder_epoch: 20
+freeze_backbone_epoch: 20
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
@@ -36,7 +36,7 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 2e-5
+lr: 1e-4
 weight_decay: 1e-2
 beta1: 0.5
 beta2: 0.999
