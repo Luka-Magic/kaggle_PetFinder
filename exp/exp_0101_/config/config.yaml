@@ -18,7 +18,7 @@ features_num: 128
 
 ######   Loss   ########################################
 loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
-gamma: 0 # FOCALLoss
+gamma: 0. # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
@@ -60,6 +60,9 @@ train_aug:
     height: ${img_size}
     width: ${img_size}
     p: 1.0
+  # Resize:
+  #   height: ${img_size}
+  #   width: ${img_size}
   Normalize:
     mean: ${img_mean}
     std: ${img_std}

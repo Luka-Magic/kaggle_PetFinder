@@ -83,18 +83,18 @@ class pf_dataset(Dataset):
         img_bgr = cv2.imread(img_path)
         img_rgb = img_bgr[:, :, ::-1]
 
-        # h, w, _ = img_rgb.shape
-        # h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
-        # if self.phase == 'valid':
-        #     h_dis, w_dis = max((h - w)//2, 0), max((w - h)//2, 0)
-        #     img_rgb = img_rgb[h_dis:h-h_dis, w_dis:w-w_dis, :]
+        h, w, _ = img_rgb.shape
+        h_pad, w_pad = max((w - h)//2, 0), max((h - w)//2, 0)
+        if self.phase == 'valid':
+            h_dis, w_dis = max((h - w)//2, 0), max((w - h)//2, 0)
+            img_rgb = img_rgb[h_dis:h-h_dis, w_dis:w-w_dis, :]
 
-        # if self.cfg.padding == 'BORDER_WRAP':
-        #     img_rgb = cv2.copyMakeBorder(
-        #         img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_WRAP)
-        # elif self.cfg.padding == 'BORDER_CONSTANT':
-        #     img_rgb = cv2.copyMakeBorder(
-        #         img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_CONSTANT)
+        if self.cfg.padding == 'BORDER_WRAP':
+            img_rgb = cv2.copyMakeBorder(
+                img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_WRAP)
+        elif self.cfg.padding == 'BORDER_CONSTANT':
+            img_rgb = cv2.copyMakeBorder(
+                img_rgb, h_pad, h_pad, w_pad, w_pad, cv2.BORDER_CONSTANT)
 
         if self.transforms:
             img = self.transforms(image=img_rgb)['image']
@@ -351,20 +351,20 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds, features = features_model(imgs, dense)
         if step == 0:
             features_list = features.detach().cpu().numpy()
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_list = np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)
-            elif cfg.loss == 'MSELoss':
-                preds_list = preds.detach().cpu().numpy()
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+                preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
         else:
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
-            elif cfg.loss == 'MSELoss':
-                preds_list = np.concatenate([preds_list,
-                    preds.detach().cpu().numpy()], axis=0)
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+                preds_list = np.concatenate([preds_list, np.clip(
+                    preds.detach().cpu().numpy(), 1, 100)], axis=0)
 
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
