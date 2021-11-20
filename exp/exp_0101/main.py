@@ -19,7 +19,6 @@ import timm
 from sklearn.cluster import KMeans
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedGroupKFold
 from sklearn.metrics import mean_squared_error
-from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
@@ -30,7 +29,7 @@ import albumentations
 
 def load_data(cfg):
     data_path = cfg.data_path
-    train_df = pd.read_csv(os.path.join(data_path, f'{cfg.train_csv}.csv'))
+    train_df = pd.read_csv(os.path.join(data_path, 'train.csv'))
     test_df = pd.read_csv(os.path.join(data_path, 'test.csv'))
 
     train_df['file_path'] = train_df['Id'].apply(
@@ -308,17 +307,6 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     return score_epoch, loss.detach().cpu().numpy()
 
 
-def preprocess(cfg, train_fold_df, valid_fold_df):
-    if 'basic' in cfg.dense_columns or 'all' in cfg.dense_columns:
-        basic_columns = ['height', 'width', 'size', 'sqrtsize', 'aspect']
-        scale = MinMaxScaler()
-        train_fold_df[basic_columns] = pd.DataFrame(scale.fit_transform(
-            train_fold_df[basic_columns]), columns=basic_columns)
-        valid_fold_df[basic_columns] = pd.DataFrame(scale.transform(
-            valid_fold_df[basic_columns]), columns=basic_columns)
-    return train_fold_df, valid_fold_df
-
-
 def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
     model.load_state_dict(torch.load(model_name))
@@ -355,7 +343,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds_list = np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)
             elif cfg.loss == 'MSELoss':
-                preds_list = preds.detach().cpu().numpy()
+                preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
         else:
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
@@ -363,8 +351,8 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
             elif cfg.loss == 'MSELoss':
-                preds_list = np.concatenate([preds_list,
-                    preds.detach().cpu().numpy()], axis=0)
+                preds_list = np.concatenate([preds_list, np.clip(
+                    preds.detach().cpu().numpy(), 1, 100)], axis=0)
 
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
                           f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
@@ -403,9 +391,6 @@ def main(cfg: DictConfig):
         valid_fold_df = train_df[train_df['kfold']
                                  == fold].reset_index(drop=True)
 
-        train_fold_df, valid_fold_df = preprocess(
-            cfg, train_fold_df, valid_fold_df)
-
         valid_rmse = {}
 
         train_loader, valid_loader, _ = prepare_dataloader(
@@ -419,9 +404,6 @@ def main(cfg: DictConfig):
 
         if cfg.optimizer == 'AdamW':
             optim = torch.optim.AdamW(
-                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
-        elif cfg.optimizer == 'RAdam':
-            optim = torch.optim.RAdam(
                 model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
 
         if cfg.scheduler == 'OneCycleLR':
