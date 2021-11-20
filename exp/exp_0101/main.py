@@ -1,5 +1,5 @@
 # Python Libraries
-from utils.loss import FOCALLoss, RMSELoss, MSPELoss
+from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
 from utils.make_columns import make_columns, len_columns
 import warnings
@@ -136,7 +136,7 @@ class pf_model(nn.Module):
         if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             n_features = self.model.head.in_features
             self.model.head = nn.Linear(n_features, cfg.features_num)
-        elif re.search(r'tf_*', cfg.model_arch):
+        elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Linear(
                 self.n_features, cfg.features_num)
@@ -231,7 +231,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
                 preds_all += [np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)]
                 labels_all += [labels.detach().cpu().numpy() * 100]
-            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
                 preds_all += [np.clip(preds.detach().cpu().numpy(), 1, 100)]
                 labels_all += [labels.detach().cpu().numpy()]
 
@@ -285,7 +285,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             preds = np.clip(torch.sigmoid(
                 preds).detach().cpu().numpy() * 100, 1, 100)
             labels = labels.detach().cpu().numpy() * 100
-        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
+        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             preds = np.clip(preds.detach().cpu().numpy(), 1, 100)
             labels = labels.detach().cpu().numpy()
 
@@ -351,18 +351,18 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds, features = features_model(imgs, dense)
         if step == 0:
             features_list = features.detach().cpu().numpy()
-            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            if cfg.loss == 'BCEWithLogitsLoss':
                 preds_list = np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)
-            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
+            elif cfg.loss == 'MSELoss':
                 preds_list = np.clip(preds.detach().cpu().numpy(), 1, 100)
         else:
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
-            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            if cfg.loss == 'BCEWithLogitsLoss':
                 preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
-            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss' or cfg.loss == 'MSPELoss':
+            elif cfg.loss == 'MSELoss':
                 preds_list = np.concatenate([preds_list, np.clip(
                     preds.detach().cpu().numpy(), 1, 100)], axis=0)
 
@@ -439,8 +439,6 @@ def main(cfg: DictConfig):
             loss_fn = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
             loss_fn = FOCALLoss(gamma=cfg.gamma)
-        elif cfg.loss == 'MSPELoss':
-            loss_fn = MSPELoss()
 
         best_score = {'score': 100, 'epoch': 0}
 

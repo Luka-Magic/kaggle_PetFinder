@@ -11,15 +11,6 @@ class RMSELoss(nn.Module):
         return torch.sqrt(self.MSELoss(input, target))
 
 
-class MSPELoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, input, target):
-        p = (input - target) / target
-        return torch.mean(p**2)
-
-
 class BCEWithLogitsLoss(nn.Module):
     def __init__(self):
         super().__init__()
