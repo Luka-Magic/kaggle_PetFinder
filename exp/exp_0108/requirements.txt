@@ -1,0 +1,6 @@
+timm
+hydra-core
+albumentations
+torch==1.10.0
+importlib
+wandb
