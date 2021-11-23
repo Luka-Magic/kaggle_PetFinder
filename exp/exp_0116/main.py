@@ -122,7 +122,7 @@ def get_transforms(cfg, phase):
     elif phase == 'tta':
         aug = cfg.tta_aug
 
-    augs = [getattr(albumentations, name)(**kwargs)
+    augs = [getattr(albumentations, name)(**kwargs) if name != 'RandomAugMix' else RandomAugMix(**kwargs)
             for name, kwargs in aug.items()]
     augs.append(ToTensorV2(p=1.))
     return albumentations.Compose(augs)
