@@ -61,7 +61,7 @@ train_aug:
     width: ${img_size}
     p: 1.0
   RandomAugMix:
-    severity: 3
+    severity: 5
     width: 5
     depth: 6
     alpha: 1.
