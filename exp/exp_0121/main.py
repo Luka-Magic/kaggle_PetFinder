@@ -2,6 +2,7 @@
 from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
 from utils.make_columns import make_columns, len_columns
+from utils.augmix import RandomAugMix
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -121,7 +122,7 @@ def get_transforms(cfg, phase):
     elif phase == 'tta':
         aug = cfg.tta_aug
 
-    augs = [getattr(albumentations, name)(**kwargs)
+    augs = [getattr(albumentations, name)(**kwargs) if name != 'RandomAugMix' else RandomAugMix(**kwargs)
             for name, kwargs in aug.items()]
     augs.append(ToTensorV2(p=1.))
     return albumentations.Compose(augs)
@@ -180,7 +181,6 @@ def prepare_dataloader(cfg, train_df, valid_df):
 
 
 def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, scheduler, scaler):
-
     def get_lr(optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']

@@ -5,11 +5,11 @@ seed: 77
 epoch: 10
 fold: StratifiedKFold
 fold_num: 10
-use_fold: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 model_arch: swin_base_patch4_window7_224_in22k
 device: cuda:0
-save: True
-result_output: True
+save: False
+result_output: False
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
@@ -22,7 +22,7 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 5e-6
+lr: 1e-5
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
@@ -60,45 +60,17 @@ train_aug:
     height: ${img_size}
     width: ${img_size}
     p: 1.0
+  RandomAugMix:
+    severity: 3
+    width: 3
+    depth: 4
+    alpha: 1.
+    p: 1.
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
     max_pixel_value: 255.0
     p: 1.0
-  HorizontalFlip: 
-    p: 0.3
-  VerticalFlip: 
-    p: 0.3
-  Rotate:
-    limit: 180
-    p: 0.2
-  ShiftScaleRotate:
-    shift_limit: 0.1
-    scale_limit: 0.1
-    rotate_limit: 45
-    p: 0.5
-  HueSaturationValue:
-    hue_shift_limit: 0.2
-    sat_shift_limit: 0.2
-    val_shift_limit: 0.2
-    p: 0.1
-  RandomBrightnessContrast:
-    brightness_limit: 0.1
-    contrast_limit: 0.1
-    p: 0.1
-  Cutout:
-    num_holes: 10
-    max_h_size: 50
-    max_w_size: 50
-    p: 0.2
-  Blur:
-    blur_limit: 15
-    p: 0.1
-  MotionBlur:
-    blur_limit: 15
-    p: 0.1
-  ToGray:
-    p: 0.1
 
 valid_aug:
   Resize:
