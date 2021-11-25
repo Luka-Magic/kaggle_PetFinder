@@ -1,0 +1,10 @@
+exps: [84, 89, 91, 93, 95, 101, 113, 115, 120]
+seed: 77
+fold: StratifiedKFold
+fold_num: 6
+
+model: SVR
+sweep_cfg:
+  C: 2
+  epsilon: 2
+  gamma: 2
