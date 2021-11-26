@@ -40,41 +40,71 @@ def rmse(y_true, y_pred):
     return np.sqrt(mean_squared_error(y_true, y_pred))
 
 
+# @hydra.main(config_path='config', config_name='config')
+# def wandb_init(cfg: DictConfig):
+#     sweep_cfg = dict(cfg.sweep_cfg)
+#     sweep_cfg['name'] = os.getcwd().split('/')[-4]
+#     count = cfg.count
+#     sweep_id = wandb.sweep(
+#         sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
+#     return sweep_id, count
+
+
 @hydra.main(config_path='config', config_name='config')
-def wandb_init(cfg: DictConfig):
+def main(cfg: DictConfig):
     sweep_cfg = dict(cfg.sweep_cfg)
     sweep_cfg['name'] = os.getcwd().split('/')[-4]
     count = cfg.count
     sweep_id = wandb.sweep(
         sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
-    return sweep_id, count
 
+    def train():
+        default_cfg = {
+            'C': 2,
+            'epsilon': 2,
+            'gamma': 1
+        }
+        wandb.init(config=default_cfg)
+        wandb_cfg = wandb.config
+        X, y = load_data(cfg.exps)
+        clf = SVR(
+            C=wandb_cfg.C,
+            epsilon=wandb_cfg.epsilon,
+            gamma=wandb_cfg.gamma
+        )
+        cv = StratifiedKFold(n_splits=cfg.fold_num,
+                             shuffle=True, random_state=cfg.seed)
 
-@hydra.main(config_path='config', config_name='config')
-def train(cfg: DictConfig):
-    sweep_cfg = {
-        'C': 2,
-        'epsilon': 2,
-        'gamma': 1
-    }
-    wandb.init(config=sweep_cfg)
-    X, y = load_data(cfg.exps)
-    wandb_cfg = wandb.config
+        score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
 
-    clf = SVR(
-        C=wandb_cfg.C,
-        epsilon=wandb_cfg.epsilon,
-        gamma=wandb_cfg.gamma
-    )
+        wandb.log({'valid_rmse': score})
+    wandb.agend(sweep_id, train, count=count)
 
-    cv = StratifiedKFold(n_splits=cfg.fold_num,
-                         shuffle=True, random_state=cfg.seed)
+# @hydra.main(config_path='config', config_name='config')
+# def train(cfg: DictConfig):
+#     default_cfg = {
+#         'C': 2,
+#         'epsilon': 2,
+#         'gamma': 1
+#     }
+#     wandb.init(config=default_cfg)
+#     X, y = load_data(cfg.exps)
+#     wandb_cfg = wandb.config
 
-    score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
+#     clf = SVR(
+#         C=wandb_cfg.C,
+#         epsilon=wandb_cfg.epsilon,
+#         gamma=wandb_cfg.gamma
+#     )
 
-    wandb.log({'valid_rmse': score})
+#     cv = StratifiedKFold(n_splits=cfg.fold_num,
+#                          shuffle=True, random_state=cfg.seed)
+
+#     score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
+
+#     wandb.log({'valid_rmse': score})
 
 
 if __name__ == '__main__':
-    sweep_id, count = wandb_init()
-    wandb.agend(sweep_id, train, count=count)
+    # sweep_id, count = wandb_init()
+    main()
