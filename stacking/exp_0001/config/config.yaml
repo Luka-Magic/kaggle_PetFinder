@@ -12,8 +12,10 @@ sweep_cfg:
     goal: minimize
   parameters:
     C:
-      values: [2**i for i in range(-5, 11)]
-    epcilon:
-      values: [2**i for i in range(-10, 1)]
-    gamma:
-      values: [2**i for i in range(-20, 11)]
+      values: [2, 3]
+    # C:
+    #   values: [2**i for i in range(-5, 11)]
+    # epsilon:
+    #   values: [2**i for i in range(-10, 1)]
+    # gamma:
+    #   values: [2**i for i in range(-20, 11)]
