@@ -14,9 +14,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import make_scorer
 
-print('before')
 wandb.login()
-print('after')
 
 
 def load_data(exps):
@@ -54,6 +52,7 @@ def rmse(y_true, y_pred):
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
+    print(cfg)
     sweep_cfg = dict(cfg.sweep_cfg)
     sweep_cfg['name'] = os.getcwd().split('/')[-4]
     count = cfg.count
