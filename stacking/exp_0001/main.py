@@ -14,7 +14,9 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import make_scorer
 
+print('before')
 wandb.login()
+print('after')
 
 
 def load_data(exps):
@@ -107,5 +109,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    # sweep_id, count = wandb_init()
     main()
