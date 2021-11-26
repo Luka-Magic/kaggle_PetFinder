@@ -1,0 +1,130 @@
+#####   BASIC   ########################################
+data_path: /content/drive/MyDrive/kaggle_PetFinder/data
+wandb_project: kaggle_PF
+seed: 77
+epoch: 10
+fold: StratifiedKFold
+fold_num: 10
+use_fold: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+model_arch: swin_large_patch4_window7_224
+device: cuda:0
+save: True
+result_output: True
+
+######   Features   ####################################
+train_csv: 'train' # {train_csv}.csv
+dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
+features_num: 128
+
+######   Loss   ########################################
+loss: FOCALLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+gamma: 0.1 # FOCALLoss
+
+##### Optimizer ########################################
+optimizer: AdamW
+lr: 1e-5
+weight_decay: 1e-6
+beta1: 0.5
+beta2: 0.999
+
+##### Scheduler ########################################
+scheduler: CosineAnnealingWarmRestarts # OneCycleLR
+T_0: ${epoch} # CAWR
+T_mult: 1 # CAWR
+eta_min: 1e-9 # CAWR
+
+pct_start: 0.3 # OCLR
+div_factor: 25. # OCLR
+final_div_factor: 1000. # OCLR
+
+##### Image Info ########################################
+img_mean: [0.485, 0.456, 0.406]
+img_std: [0.229, 0.224, 0.225]
+img_size: 224
+
+##### DataLoader ########################################
+train_bs: 32
+valid_bs: 32
+num_workers: 2
+
+##### MixUp #############################################
+mix_p: 0.
+init_nomix_epoch: 0
+last_nomix_epoch: 0
+
+##### Data Augmentation #################################
+padding: None
+
+train_aug:
+  RandomResizedCrop:
+    height: ${img_size}
+    width: ${img_size}
+    p: 1.0
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+  HorizontalFlip: 
+    p: 0.3
+  VerticalFlip: 
+    p: 0.3
+  Rotate:
+    limit: 180
+    p: 0.2
+  ShiftScaleRotate:
+    shift_limit: 0.1
+    scale_limit: 0.1
+    rotate_limit: 45
+    p: 0.5
+  HueSaturationValue:
+    hue_shift_limit: 0.2
+    sat_shift_limit: 0.2
+    val_shift_limit: 0.2
+    p: 0.1
+  RandomBrightnessContrast:
+    brightness_limit: 0.1
+    contrast_limit: 0.1
+    p: 0.1
+  Cutout:
+    num_holes: 10
+    max_h_size: 50
+    max_w_size: 50
+    p: 0.2
+  Blur:
+    blur_limit: 15
+    p: 0.1
+  MotionBlur:
+    blur_limit: 15
+    p: 0.1
+  ToGray:
+    p: 0.1
+
+valid_aug:
+  Resize:
+    height: ${img_size}
+    width: ${img_size}
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+
+tta_aug:
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+  Resize:
+    height: ${img_size}
+    width: ${img_size}
+  RandomResizedCrop:
+    height: ${img_size}
+    width: ${img_size}
+    scale: [0.3, 1.0]
+    p: 1.0
+  HorizontalFlip: 
+    p: 0.5
+  VerticalFlip: 
+    p: 0.5
