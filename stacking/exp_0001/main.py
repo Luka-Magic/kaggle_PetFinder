@@ -69,9 +69,10 @@ def main(cfg: DictConfig):
             }
         }
     }
+    
+    print(sweep_configuration)
+    print(sweep_cfg)
     print(sweep_configuration == sweep_cfg)
-    # print(sweep_configuration)
-    # print(sweep_cfg)
 
     sweep_id = wandb.sweep(sweep_configuration, project='kaggle_PF_sweep')
 
