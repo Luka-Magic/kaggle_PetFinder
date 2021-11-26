@@ -45,6 +45,7 @@ def main(cfg: DictConfig):
     wandb.init(config=cfg.sweep_cfg, project='kaggle_PF_sweep')
     X, y = load_data(cfg.exps)
     wandb_cfg = wandb.config
+    print(cfg.wandb_cfg)
     print(wandb_cfg)
 
     clf = SVR(
