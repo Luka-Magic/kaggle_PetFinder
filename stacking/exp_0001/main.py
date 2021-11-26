@@ -57,6 +57,7 @@ def main(cfg: DictConfig):
     count = cfg.count
     sweep_id = wandb.sweep(
         sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
+    print('OK')
 
     def train():
         default_cfg = {
