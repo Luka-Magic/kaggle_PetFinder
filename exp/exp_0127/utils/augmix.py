@@ -158,8 +158,7 @@ def augment_and_mix(image, severity=3, width=3, depth=4, alpha=1.):
     mix = np.zeros_like(image).astype(np.float32)
     for i in range(width):
         image_aug = image.copy()
-        depth = np.random.randint(1, depth)
-        for _ in range(depth):
+        for _ in range(np.random.randint(1, depth)):
             op = np.random.choice(augmentations_all)
             image_aug = apply_op(image_aug, op, severity)
         # Preprocessing commutes since all coefficients are convex
