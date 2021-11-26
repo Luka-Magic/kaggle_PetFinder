@@ -60,15 +60,17 @@ def main(cfg: DictConfig):
     # print(type(sweep_cfg))
     # print(sweep_cfg)
     sweep_configuration = {
-        "name": "my-awesome-sweep",
-        "metric": {"name": "accuracy", "goal": "maximize"},
-        "method": "grid",
+        "name": os.getcwd().split('/')[-4],
+        "metric": {"name": "valid_rmse", "goal": "minimize"},
+        "method": "bayes",
         "parameters": {
-            "a": {
-                "values": [1, 2, 3, 4]
+            "C": {
+                "values": [2, 3]
             }
         }
     }
+    print(sweep_configuration)
+    print(sweep_cfg)
 
     sweep_id = wandb.sweep(sweep_configuration, project='kaggle_PF_sweep')
 
