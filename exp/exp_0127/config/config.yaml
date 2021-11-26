@@ -63,7 +63,7 @@ train_aug:
   RandomAugMix:
     severity: 3
     width: 4
-    depth: 6
+    depth: 4
     alpha: 1.
     p: 1.
   Normalize:
