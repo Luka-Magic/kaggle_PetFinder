@@ -54,34 +54,34 @@ def rmse(y_true, y_pred):
 def main(cfg: DictConfig):
     # print(cfg)
     sweep_cfg = dict(cfg.sweep_cfg)
-    print(sweep_cfg)
+    # print(sweep_cfg)
     sweep_cfg['name'] = os.getcwd().split('/')[-4]
     count = cfg.count
     sweep_id = wandb.sweep(
         sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
-    print('OK')
+    # print('OK')
 
-    def train():
-        default_cfg = {
-            'C': 2,
-            'epsilon': 2,
-            'gamma': 1
-        }
-        wandb.init(config=default_cfg)
-        wandb_cfg = wandb.config
-        X, y = load_data(cfg.exps)
-        clf = SVR(
-            C=wandb_cfg.C,
-            epsilon=wandb_cfg.epsilon,
-            gamma=wandb_cfg.gamma
-        )
-        cv = StratifiedKFold(n_splits=cfg.fold_num,
-                             shuffle=True, random_state=cfg.seed)
+    # def train():
+    #     default_cfg = {
+    #         'C': 2,
+    #         'epsilon': 2,
+    #         'gamma': 1
+    #     }
+    #     wandb.init(config=default_cfg)
+    #     wandb_cfg = wandb.config
+    #     X, y = load_data(cfg.exps)
+    #     clf = SVR(
+    #         C=wandb_cfg.C,
+    #         epsilon=wandb_cfg.epsilon,
+    #         gamma=wandb_cfg.gamma
+    #     )
+    #     cv = StratifiedKFold(n_splits=cfg.fold_num,
+    #                          shuffle=True, random_state=cfg.seed)
 
-        score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
+    #     score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
 
-        wandb.log({'valid_rmse': score})
-    wandb.agend(sweep_id, train, count=count)
+    #     wandb.log({'valid_rmse': score})
+    # wandb.agend(sweep_id, train, count=count)
 
 # @hydra.main(config_path='config', config_name='config')
 # def train(cfg: DictConfig):
