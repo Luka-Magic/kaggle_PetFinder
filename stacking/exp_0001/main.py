@@ -59,20 +59,20 @@ def main(cfg: DictConfig):
     count = cfg.count
     # print(type(sweep_cfg))
     # print(sweep_cfg)
-    # sweep_configuration = {
-    #     "name": os.getcwd().split('/')[-4],
-    #     "metric": {"name": "valid_rmse", "goal": "minimize"},
-    #     "method": "bayes",
-    #     "parameters": {
-    #         "C": {
-    #             "values": [2, 3]
-    #         }
-    #     }
-    # }
+    sweep_configuration = {
+        # "name": os.getcwd().split('/')[-4],
+        "metric": {"name": "valid_rmse", "goal": "minimize"},
+        "method": "bayes",
+        "parameters": {
+            "C": {
+                "values": [2, 3]
+            }
+        }
+    }
     # print(sweep_configuration)
     # print(sweep_cfg)
 
-    sweep_id = wandb.sweep(sweep_cfg, project='kaggle_PF_sweep')
+    sweep_id = wandb.sweep(sweep_configuration, project='kaggle_PF_sweep')
 
     # print('OK')
 
