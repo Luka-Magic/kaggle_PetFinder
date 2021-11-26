@@ -6,10 +6,10 @@ count: 100
 
 model: SVR
 sweep_cfg:
-  method: bayes
   metric:
     name: valid_rmse
     goal: minimize
+  method: bayes
   parameters:
     C:
       values: [2, 3]

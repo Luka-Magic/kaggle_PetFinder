@@ -69,6 +69,7 @@ def main(cfg: DictConfig):
             }
         }
     }
+    print(sweep_configuration == sweep_cfg)
     # print(sweep_configuration)
     # print(sweep_cfg)
 
