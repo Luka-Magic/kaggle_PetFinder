@@ -52,8 +52,9 @@ def rmse(y_true, y_pred):
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
-    print(cfg)
+    # print(cfg)
     sweep_cfg = dict(cfg.sweep_cfg)
+    print(sweep_cfg)
     sweep_cfg['name'] = os.getcwd().split('/')[-4]
     count = cfg.count
     sweep_id = wandb.sweep(
