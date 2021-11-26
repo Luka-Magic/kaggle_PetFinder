@@ -41,14 +41,23 @@ def rmse(y_true, y_pred):
 
 
 @hydra.main(config_path='config', config_name='config')
-def main(cfg: DictConfig):
+def wandb_init(cfg: DictConfig):
+    sweep_cfg = dict(cfg.sweep_cfg)
+    sweep_cfg['name'] = os.getcwd().split('/')[-4]
+    count = cfg.count
+    sweep_id = wandb.sweep(
+        sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
+    return sweep_id, count
+
+
+@hydra.main(config_path='config', config_name='config')
+def train(cfg: DictConfig):
     sweep_cfg = {
         'C': 2,
         'epsilon': 2,
         'gamma': 1
     }
-
-    wandb.init(config=sweep_cfg, project='kaggle_PF_sweep')
+    wandb.init(config=sweep_cfg)
     X, y = load_data(cfg.exps)
     wandb_cfg = wandb.config
 
@@ -67,4 +76,5 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    main()
+    sweep_id, count = wandb_init()
+    wandb.agend(sweep_id, train, count=count)
