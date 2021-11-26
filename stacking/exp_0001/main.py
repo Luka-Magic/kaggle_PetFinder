@@ -16,6 +16,7 @@ from sklearn.metrics import make_scorer
 
 wandb.login()
 
+
 def load_data(exps):
     compe_path = '/'.join(os.getcwd().split('/')[:-6])
     train_df = pd.read_csv(os.path.join(compe_path, 'data/train.csv'))
@@ -29,7 +30,7 @@ def load_data(exps):
         merge_df = df[['Id', 'preds']].rename(
             columns={'preds': exp_name})
         train_preds_df = pd.merge(train_preds_df, merge_df, on='Id')
-    train_preds_df.drop('Id', drop=1, inplace=True)
+    train_preds_df.drop('Id', axis=1, inplace=True)
     X = train_preds_df.drop('Pawpularity', axis=1)
     y = train_preds_df.Pawpularity
     return X, y
@@ -38,6 +39,7 @@ def load_data(exps):
 def rmse(y_true, y_pred):
     return np.sqrt(mean_squared_error(y_true, y_pred))
 
+
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
     wandb.init(config=cfg.sweep_cfg, project='kaggle_PF_sweep')
@@ -45,16 +47,18 @@ def main(cfg: DictConfig):
     wandb_cfg = wandb.config
 
     clf = SVR(
-        C = wandb_cfg.C,
+        C=wandb_cfg.C,
         epsilon=wandb_cfg.epsilon,
         gamma=wandb_cfg.gamma
     )
 
-    cv = StratifiedKFold(n_split=cfg.fold_num,shuffle=True, random_state=cfg.seed)
+    cv = StratifiedKFold(n_split=cfg.fold_num,
+                         shuffle=True, random_state=cfg.seed)
 
     score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
 
     wandb.log({'valid_rmse': score})
+
 
 if __name__ == '__main__':
     main()
