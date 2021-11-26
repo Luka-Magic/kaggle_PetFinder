@@ -58,7 +58,7 @@ def main(cfg: DictConfig):
         gamma=wandb_cfg.gamma
     )
 
-    cv = StratifiedKFold(n_split=cfg.fold_num,
+    cv = StratifiedKFold(n_splits=cfg.fold_num,
                          shuffle=True, random_state=cfg.seed)
 
     score = cross_val_score(clf, X, y, scoring=make_scorer(rmse), cv=cv)
