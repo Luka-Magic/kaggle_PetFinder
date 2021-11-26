@@ -8,8 +8,8 @@ fold_num: 10
 use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 model_arch: swin_large_patch4_window7_224
 device: cuda:0
-save: False
-result_output: False
+save: True
+result_output: True
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
@@ -62,7 +62,8 @@ train_aug:
     p: 1.0
   RandomAugMix:
     severity: 3
-    width: 3
+    width: 4
+    depth: 6
     alpha: 1.
     p: 1.
   Normalize:
