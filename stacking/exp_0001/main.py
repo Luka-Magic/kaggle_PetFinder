@@ -57,8 +57,8 @@ def main(cfg: DictConfig):
     # print(sweep_cfg)
     sweep_cfg['name'] = os.getcwd().split('/')[-4]
     count = cfg.count
-    sweep_id = wandb.sweep(
-        sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
+    # sweep_id = wandb.sweep(
+    #     sweep_cfg, project='kaggle_PF_sweep', entity='luka-magic')
     # print('OK')
 
     # def train():
