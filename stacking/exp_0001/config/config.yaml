@@ -4,7 +4,3 @@ fold: StratifiedKFold
 fold_num: 6
 
 model: SVR
-sweep_cfg:
-  C: 2
-  epsilon: 2
-  gamma: 2

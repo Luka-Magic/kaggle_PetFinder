@@ -42,11 +42,15 @@ def rmse(y_true, y_pred):
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
-    wandb.init(config=cfg.sweep_cfg, project='kaggle_PF_sweep')
+    sweep_cfg = {
+        'C': 2,
+        'epsilon': 2,
+        'gamma': 1
+    }
+
+    wandb.init(config=sweep_cfg, project='kaggle_PF_sweep')
     X, y = load_data(cfg.exps)
     wandb_cfg = wandb.config
-    print(cfg.sweep_cfg)
-    print(wandb_cfg)
 
     clf = SVR(
         C=wandb_cfg.C,
