@@ -60,10 +60,14 @@ train_aug:
     height: ${img_size}
     width: ${img_size}
     p: 1.0
+  HorizontalFlip:
+    p: 0.25
+  VerticalFlip:
+    p: 0.25
   RandomAugMix:
-    severity: 3
+    severity: 4
     width: 4
-    depth: 4
+    depth: 5
     alpha: 1.
     p: 1.
   Normalize:
