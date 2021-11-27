@@ -183,7 +183,7 @@ class pf_model(nn.Module):
         class_5 = self.class_5_branch(features)
 
         reg_mid = self.reg_branch_init(features)
-        reg = torch.cat([features, dense], dim=1)
+        reg_mid = torch.cat([reg_mid, dense], dim=1)
         reg = self.reg_branch_last(reg_mid)
 
         return class_100, class_20, class_10, class_5, reg
@@ -260,6 +260,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
     preds_all = []
+    preds_cls_all = []
     labels_all = []
 
     for step, (imgs, dense, labels) in pbar:
@@ -293,17 +294,23 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_all += [np.clip(torch.sigmoid(
                     preds[-1]).detach().cpu().numpy() * 100, 1, 100)]
+                preds_cls_all += [torch.argmax(preds[0],
+                                               1).detach().cpu().numpy()]
                 labels_all += [labels.detach().cpu().numpy() * 100]
             elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
                 preds_all += [np.clip(preds[-1].detach().cpu().numpy(), 1, 100)]
+                preds_cls_all += [torch.argmax(preds[0],
+                                               1).detach().cpu().numpy()]
                 labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.concatenate(preds_all)
+            preds_cls_temp = np.concatenate(preds_cls_all)
             labels_temp = np.concatenate(labels_all)
 
             score = mean_squared_error(labels_temp, preds_temp) ** 0.5
+            score_cls = mean_squared_error(labels_temp, preds_cls_all) ** 0.5
 
-            description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
+            description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}, score_cls: {score_cls:.4f}'
             pbar.set_description(description)
         else:
             description = f'epoch: {epoch}, mixup'
@@ -313,11 +320,14 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         scheduler.step()
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
+        preds_cls_epoch = np.concatenate(preds_cls_all)
         labels_epoch = np.concatenate(labels_all)
 
         score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
+        score_cls_epoch = mean_squared_error(
+            labels_epoch, preds_cls_epoch) ** 0.5
 
-        return score_epoch, loss.detach().cpu().numpy(), lr
+        return score_epoch, score_cls_epoch, loss.detach().cpu().numpy(), lr
     else:
         return lr
 
@@ -511,11 +521,11 @@ def main(cfg: DictConfig):
 
             if cfg.mix_p == 0:
                 train_start_time = time.time()
-                train_score_epoch, train_loss_epoch, lr = train_one_epoch(
+                train_score_epoch, train_score_cls_epoch, train_loss_epoch, lr = train_one_epoch(
                     cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
                 train_finish_time = time.time()
                 print(
-                    f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
+                    f'TRAIN {epoch}, score: {train_score_epoch:.4f}, score_cls: {train_score_cls_epoch},  time: {train_finish_time-train_start_time:.4f}')
             else:
                 train_start_time = time.time()
                 lr = train_one_epoch(
