@@ -203,6 +203,7 @@ class pf_multiloss(nn.Module):
 
     def forward(self, inputs, target):
         labels = self.get_labels(target)
+        print(labels)
         loss = sum([weight * criterion(input, target) for criterion, weight, input,
                    target in zip(self.loss_fns, self.weights, inputs, labels)])
         return loss
@@ -308,7 +309,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
             labels_temp = np.concatenate(labels_all)
 
             score = mean_squared_error(labels_temp, preds_temp) ** 0.5
-            score_cls = mean_squared_error(labels_temp, preds_cls_all) ** 0.5
+            score_cls = mean_squared_error(labels_temp, preds_cls_temp) ** 0.5
 
             description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}, score_cls: {score_cls:.4f}'
             pbar.set_description(description)
