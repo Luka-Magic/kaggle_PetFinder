@@ -207,7 +207,7 @@ class pf_multiloss(nn.Module):
         print(inputs)
         print(inputs[0].shape)
         print(labels[0].shape)
-        
+
         loss = [weight * criterion(input, target) for criterion, weight, input,
                 target in zip(self.loss_fns, self.weights, inputs, labels)]
         return sum(loss)
@@ -352,7 +352,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
-        labels = labels.to(device).float().view(-1, 1)
+        labels = labels.to(device).long()
 
         # if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
         #     labels /= 100
