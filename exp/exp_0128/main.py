@@ -343,6 +343,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
     preds_all = []
+    preds_cls_all = []
     labels_all = []
 
     for step, (imgs, dense, labels) in pbar:
@@ -361,28 +362,37 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             preds = np.clip(torch.sigmoid(
                 preds[-1]).detach().cpu().numpy() * 100, 1, 100)
+            preds_cls = torch.argmax(preds[0],
+                                            1).detach().cpu().numpy()
             labels = labels.detach().cpu().numpy() * 100
         elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             preds = np.clip(preds[-1].detach().cpu().numpy(), 1, 100)
+            preds_cls = torch.argmax(preds[0],
+                                           1).detach().cpu().numpy()
             labels = labels.detach().cpu().numpy()
 
         preds_all += [preds]
+        preds_cls_all += [preds_cls]
         labels_all += [labels]
 
         preds_temp = np.concatenate(preds_all)
+        preds_cls_temp = np.concatenate(preds_cls_all)
         labels_temp = np.concatenate(labels_all)
 
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
+        score_cls = mean_squared_error(labels_temp, preds_cls_temp) ** 0.5
 
-        description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
+        description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}, score_cls: {score_cls:.4f}'
         pbar.set_description(description)
 
     preds_epoch = np.concatenate(preds_all)
+    preds_cls_epoch = np.concatenate(preds_cls_all)
     labels_epoch = np.concatenate(labels_all)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
+    score_cls_epoch = mean_squared_error(labels_epoch, preds_cls_epoch) ** 0.5
 
-    return score_epoch, loss.detach().cpu().numpy()
+    return score_epoch, score_cls_epoch, loss.detach().cpu().numpy()
 
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
@@ -543,7 +553,7 @@ def main(cfg: DictConfig):
             valid_start_time = time.time()
 
             with torch.no_grad():
-                valid_score_epoch, valid_loss_epoch = valid_one_epoch(
+                valid_score_epoch, valid_score_cls_epoch, valid_loss_epoch = valid_one_epoch(
                     cfg, epoch, model, loss_fn, valid_loader, device)
 
             valid_finish_time = time.time()
@@ -551,13 +561,14 @@ def main(cfg: DictConfig):
             valid_rmse[epoch] = valid_score_epoch
 
             print(
-                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+                f'VALID {epoch}, score: {valid_score_epoch}, valid_score_epoch: {valid_score_cls_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+            
             if cfg.mix_p == 0:
-                wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-                           'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                wandb.log({'train_rmse': train_score_epoch, 'train_cls_rmse': train_score_cls_epoch, 'train_loss': train_loss_epoch,
+                           'valid_rmse': valid_score_epoch, 'valid_cls_rmse': valid_score_cls_epoch, 'valid_loss': valid_loss_epoch,
                            'epoch': epoch, 'lr': lr})
             else:
-                wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                wandb.log({'valid_rmse': valid_score_epoch, 'valid_cls_rmse': valid_score_cls_epoch, 'valid_loss': valid_loss_epoch,
                            'epoch': epoch, 'lr': lr})
 
             if cfg.save:
