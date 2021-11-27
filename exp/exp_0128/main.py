@@ -218,9 +218,9 @@ class pf_multiloss(nn.Module):
         class_10_label = (target - 1) // 10  # [0, 9]
         class_5_label = (target - 1) // 20  # [0, 4]
         if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-            reg_label = target / 100
+            reg_label = (target / 100).float().view(-1, 1)
         else:
-            reg_label = target
+            reg_label = target.float().view(-1, 1)
         return class_100_label, class_20_label, class_10_label, class_5_label, reg_label
 
 
