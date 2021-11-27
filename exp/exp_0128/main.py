@@ -190,8 +190,9 @@ class pf_model(nn.Module):
 
 
 class pf_multiloss(nn.Module):
-    def __init__(self, reg_criterion, gamma=1):
+    def __init__(self, cfg, reg_criterion, gamma=1):
         super().__init__()
+        self.loss = cfg.loss
         self.loss_fns = [
             nn.CrossEntropyLoss(),
             nn.CrossEntropyLoss(),
@@ -203,17 +204,20 @@ class pf_multiloss(nn.Module):
 
     def forward(self, inputs, target):
         labels = self.get_labels(target)
-        print(labels)
+        # print(labels)
         loss = sum([weight * criterion(input, target) for criterion, weight, input,
                    target in zip(self.loss_fns, self.weights, inputs, labels)])
         return loss
 
     def get_labels(self, target):
+        reg_label = target
+        if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+            target = int(target * 100)
         class_100_label = target - 1  # [0, 99]
         class_20_label = (target - 1) // 5  # [0, 19]
         class_10_label = (target - 1) // 10  # [0, 9]
         class_5_label = (target - 1) // 20  # [0, 4]
-        reg_label = target
+
         return class_100_label, class_20_label, class_10_label, class_5_label, reg_label
 
 
@@ -269,8 +273,8 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
-        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-            labels /= 100
+        # if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+        #     labels /= 100
 
         with autocast():
             # mix_p = np.random.rand()
@@ -347,8 +351,8 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         dense = dense.to(device).float()
         labels = labels.to(device).float().view(-1, 1)
 
-        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-            labels /= 100
+        # if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+        #     labels /= 100
 
         with autocast():
             preds = model(imgs, dense)
@@ -513,7 +517,7 @@ def main(cfg: DictConfig):
             reg_criterion = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
             reg_criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = pf_multiloss(reg_criterion, gamma=1)
+        loss_fn = pf_multiloss(cfg, reg_criterion, gamma=1)
 
         best_score = {'score': 100, 'epoch': 0}
 
