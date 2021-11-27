@@ -359,18 +359,18 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
             loss = loss_fn(preds, labels)
 
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-            preds = np.clip(torch.sigmoid(
+            preds_reg = np.clip(torch.sigmoid(
                 preds[-1]).detach().cpu().numpy() * 100, 1, 100)
             preds_cls = torch.argmax(preds[0],
                                      1).detach().cpu().numpy()
             labels = labels.detach().cpu().numpy()
         elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
-            preds = np.clip(preds[-1].detach().cpu().numpy(), 1, 100)
+            preds_reg = np.clip(preds[-1].detach().cpu().numpy(), 1, 100)
             preds_cls = torch.argmax(preds[0],
                                      1).detach().cpu().numpy()
             labels = labels.detach().cpu().numpy()
 
-        preds_all += [preds]
+        preds_all += [preds_reg]
         preds_cls_all += [preds_cls]
         labels_all += [labels]
 
