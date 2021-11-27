@@ -525,7 +525,7 @@ def main(cfg: DictConfig):
             reg_criterion = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
             reg_criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = pf_multiloss(cfg, reg_criterion, gamma=1)
+        loss_fn = pf_multiloss(cfg, reg_criterion, gamma=cfg.reg_gamma)
 
         best_score = {'score': 100, 'epoch': 0}
 
