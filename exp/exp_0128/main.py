@@ -300,7 +300,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
                     preds[-1]).detach().cpu().numpy() * 100, 1, 100)]
                 preds_cls_all += [torch.argmax(preds[0],
                                                1).detach().cpu().numpy()]
-                labels_all += [labels.detach().cpu().numpy() * 100]
+                labels_all += [labels.detach().cpu().numpy()]
             elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
                 preds_all += [np.clip(preds[-1].detach().cpu().numpy(), 1, 100)]
                 preds_cls_all += [torch.argmax(preds[0],
@@ -356,19 +356,18 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
         with autocast():
             preds = model(imgs, dense)
-
-        loss = loss_fn(preds, labels)
+            loss = loss_fn(preds, labels)
 
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             preds = np.clip(torch.sigmoid(
                 preds[-1]).detach().cpu().numpy() * 100, 1, 100)
             preds_cls = torch.argmax(preds[0],
-                                            1).detach().cpu().numpy()
-            labels = labels.detach().cpu().numpy() * 100
+                                     1).detach().cpu().numpy()
+            labels = labels.detach().cpu().numpy()
         elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             preds = np.clip(preds[-1].detach().cpu().numpy(), 1, 100)
             preds_cls = torch.argmax(preds[0],
-                                           1).detach().cpu().numpy()
+                                     1).detach().cpu().numpy()
             labels = labels.detach().cpu().numpy()
 
         preds_all += [preds]
@@ -562,7 +561,7 @@ def main(cfg: DictConfig):
 
             print(
                 f'VALID {epoch}, score: {valid_score_epoch}, valid_score_epoch: {valid_score_cls_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-            
+
             if cfg.mix_p == 0:
                 wandb.log({'train_rmse': train_score_epoch, 'train_cls_rmse': train_score_cls_epoch, 'train_loss': train_loss_epoch,
                            'valid_rmse': valid_score_epoch, 'valid_cls_rmse': valid_score_cls_epoch, 'valid_loss': valid_loss_epoch,
