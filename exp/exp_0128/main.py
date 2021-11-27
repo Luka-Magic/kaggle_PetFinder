@@ -199,13 +199,14 @@ class pf_multiloss(nn.Module):
             nn.CrossEntropyLoss(),
             nn.CrossEntropyLoss(),
             nn.CrossEntropyLoss(),
-            gamma * reg_criterion
+            reg_criterion
         ]
+        self.weights = [1, 1, 1, 1, gamma]
 
     def forward(self, inputs, target):
         labels = self.get_labels(target)
-        loss = sum([criterion(input, target) for criterion, input,
-                   target in zip(self.loss_fns, inputs, labels)])
+        loss = sum([weight * criterion(input, target) for criterion, weight, input,
+                   target in zip(self.loss_fns, self.weights, inputs, labels)])
         return loss
 
     def get_labels(self, target):
