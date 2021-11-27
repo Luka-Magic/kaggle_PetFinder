@@ -205,9 +205,9 @@ class pf_multiloss(nn.Module):
     def forward(self, inputs, target):
         labels = self.get_labels(target)
         # print(labels)
-        loss = sum([weight * criterion(input, target) for criterion, weight, input,
-                   target in zip(self.loss_fns, self.weights, inputs, labels)])
-        return loss
+        loss = [weight * criterion(input, target) for criterion, weight, input,
+                target in zip(self.loss_fns, self.weights, inputs, labels)]
+        return sum(loss)
 
     def get_labels(self, target):
         reg_label = target
