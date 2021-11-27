@@ -136,11 +136,10 @@ class pf_model(nn.Module):
 
         if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             self.n_features = self.model.head.in_features
-            # self.model.head = nn.Linear(n_features, cfg.features_num)
+            self.model.head = nn.Identify()
         elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
-            # self.model.classifier = nn.Linear(
-            #     self.n_features, cfg.features_num)
+            self.model.head = nn.Identify()
 
         self.class_100_branch = nn.Sequential(
             nn.Linear(self.n_features, 256),
