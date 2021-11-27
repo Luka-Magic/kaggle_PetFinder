@@ -210,14 +210,14 @@ class pf_multiloss(nn.Module):
         return sum(loss)
 
     def get_labels(self, target):
-        reg_label = target
-        if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-            target = int(target * 100)
         class_100_label = target - 1  # [0, 99]
         class_20_label = (target - 1) // 5  # [0, 19]
         class_10_label = (target - 1) // 10  # [0, 9]
         class_5_label = (target - 1) // 20  # [0, 4]
-
+        if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+            reg_label = target / 100
+        else:
+            reg_label = target
         return class_100_label, class_20_label, class_10_label, class_5_label, reg_label
 
 
