@@ -274,7 +274,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
-        labels = labels.to(device).float().view(-1, 1)
+        labels = labels.to(device).long()
 
         # if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
         #     labels /= 100
