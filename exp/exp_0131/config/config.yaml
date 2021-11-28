@@ -6,7 +6,7 @@ epoch: 10
 fold: StratifiedKFold
 fold_num: 10
 use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-model_arch: coat_lite_small
+model_arch: coat_mini
 device: cuda:0
 save: False
 result_output: False
