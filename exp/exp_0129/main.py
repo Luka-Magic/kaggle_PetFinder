@@ -608,6 +608,5 @@ def main(cfg: DictConfig):
     if save_flag:
         results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
 
-
 if __name__ == '__main__':
     main()
