@@ -11,14 +11,14 @@ from PIL import Image
 import imagehash
 
 
-def img_hash(series):
+def img_hash(file_name):
     funcs = [
         imagehash.average_hash,
         imagehash.phash,
         imagehash.dhash,
         imagehash.whash,
     ]
-    image = Image.open(series.file)
+    image = Image.open(file_name)
     return np.array([f(image).hash for f in funcs]).reshape(256).astype(np.uint8)
 
 
@@ -29,7 +29,6 @@ def make_hash_df(file_path_ser: pd.Series):
     hash_df = file_path_ser.apply(lambda x: img_hash(x))
     hash_df.columns = [f'hash_{i}' for i in range(hash_df.shape[1])]
     return hash_df
-
 
 def delete_sim_img(hash_df, theshold=0.8):
     train_hashes = hash_df.values
