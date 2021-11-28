@@ -40,3 +40,4 @@ def delete_sim_img(hash_df, theshold=0.8):
     hash_df['sims'] = 0
     hash_df.loc[indices1, 'sims'] = 1
     return hash_df
+
