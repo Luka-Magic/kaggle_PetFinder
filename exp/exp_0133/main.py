@@ -366,21 +366,21 @@ def train_valid_one_epoch(cfg, fold, epoch, model, loss_fn, optimizer, train_loa
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
 
-        if (step + 1) % cfg.save_step == 0:
+        if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
             with torch.no_grad():
                 valid_score = valid_function(cfg, epoch, model, loss_fn,
                                              valid_loader, device)
             model.train()
 
             wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score,
-                      'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                      'step_sum': epoch*len(train_loader) + step})
 
-        if (step + 1) == len(train_loader):
-            with torch.no_grad():
-                valid_score = valid_function(cfg, epoch, model, loss_fn,
-                                             valid_loader, device)
-            wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'epoch': epoch,
-                      'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+            if (step + 1) == len(train_loader):
+                with torch.no_grad():
+                    valid_score = valid_function(cfg, epoch, model, loss_fn,
+                                                valid_loader, device)
+                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'epoch': epoch,
+                        'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
                 if best_score['score'] > valid_score:
