@@ -447,67 +447,67 @@ def main(cfg: DictConfig):
 
         best_score = {'score': 100, 'epoch': 0}
 
-        # for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
-        #     # Train Start
+        for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
+            # Train Start
 
-        #     if cfg.mix_p == 0:
-        #         train_start_time = time.time()
-        #         train_score_epoch, train_loss_epoch, lr = train_one_epoch(
-        #             cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
-        #         train_finish_time = time.time()
-        #         print(
-        #             f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
-        #     else:
-        #         train_start_time = time.time()
-        #         lr = train_one_epoch(
-        #             cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
-        #         train_finish_time = time.time()
-        #         print(
-        #             f'TRAIN {epoch}, mixup, time: {train_finish_time-train_start_time:.4f}')
+            if cfg.mix_p == 0:
+                train_start_time = time.time()
+                train_score_epoch, train_loss_epoch, lr = train_one_epoch(
+                    cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                train_finish_time = time.time()
+                print(
+                    f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
+            else:
+                train_start_time = time.time()
+                lr = train_one_epoch(
+                    cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
+                train_finish_time = time.time()
+                print(
+                    f'TRAIN {epoch}, mixup, time: {train_finish_time-train_start_time:.4f}')
 
-        #     # Valid Start
+            # Valid Start
 
-        #     valid_start_time = time.time()
+            valid_start_time = time.time()
 
-        #     with torch.no_grad():
-        #         valid_score_epoch, valid_loss_epoch = valid_one_epoch(
-        #             cfg, epoch, model, loss_fn, valid_loader, device)
+            with torch.no_grad():
+                valid_score_epoch, valid_loss_epoch = valid_one_epoch(
+                    cfg, epoch, model, loss_fn, valid_loader, device)
 
-        #     valid_finish_time = time.time()
+            valid_finish_time = time.time()
 
-        #     valid_rmse[epoch] = valid_score_epoch
+            valid_rmse[epoch] = valid_score_epoch
 
-        #     print(
-        #         f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-        #     if cfg.mix_p == 0:
-        #         wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-        #                    'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-        #                    'epoch': epoch, 'lr': lr})
-        #     else:
-        #         wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-        #                    'epoch': epoch, 'lr': lr})
+            print(
+                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
+            if cfg.mix_p == 0:
+                wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
+                           'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                           'epoch': epoch, 'lr': lr})
+            else:
+                wandb.log({'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
+                           'epoch': epoch, 'lr': lr})
 
-        #     if cfg.save:
-        #
-        #         if best_score['score'] > valid_score_epoch:
-        #             torch.save(model.state_dict(), model_name)
+            if cfg.save:
+        
+                if best_score['score'] > valid_score_epoch:
+                    torch.save(model.state_dict(), model_name)
 
-        #             best_score['score'] = valid_score_epoch
-        #             best_score['epoch'] = epoch
-        #             print(
-        #                 f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
-        #         else:
-        #             print(
-        #                 f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
+                    best_score['score'] = valid_score_epoch
+                    best_score['epoch'] = epoch
+                    print(
+                        f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
+                else:
+                    print(
+                        f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
 
-        # # print Score
+        # print Score
 
-        # valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
-        # print('='*40)
-        # print(f'Fold {fold}')
-        # for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
-        #     print(f'No.{i+1}: {rmse:.5f} (epoch{epoch})')
-        # print('='*40)
+        valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
+        print('='*40)
+        print(f'Fold {fold}')
+        for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
+            print(f'No.{i+1}: {rmse:.5f} (epoch{epoch})')
+        print('='*40)
 
         del model
         gc.collect()
