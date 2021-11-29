@@ -311,7 +311,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
             if (step + 1) == len(train_loader):
                 with torch.no_grad():
-                    valid_score = valid_function(cfg, epoch, model, loss_fn,
+                    valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
                                                  valid_loader, device)
                 wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
                           'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
