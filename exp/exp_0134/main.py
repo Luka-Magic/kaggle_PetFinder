@@ -3,6 +3,7 @@ from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
 from utils.make_columns import make_columns, len_columns
 from utils.augmix import RandomAugMix
+from utils.averagemeter import AverageMeter
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -47,9 +48,6 @@ def load_data(cfg):
     elif cfg.fold == 'StratifiedKFold':
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    # elif cfg.fold == 'StratifiedGroupKFold':
-    #     folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-    #         X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values, groups=train_df.cluster.values)
     for fold, (train_index, valid_index) in enumerate(folds):
         train_df.loc[valid_index, 'kfold'] = fold
 
@@ -63,25 +61,6 @@ def seed_everything(seed):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     warnings.simplefilter('ignore')
-
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
 
 
 class pf_dataset(Dataset):
@@ -328,7 +307,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             model.train()
 
             wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                      'valid_loss': valid_losses.avg, 'step_sum': epoch*len(train_loader) + step})
+                      'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
 
             if (step + 1) == len(train_loader):
                 with torch.no_grad():
