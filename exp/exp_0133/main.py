@@ -366,14 +366,21 @@ def train_valid_one_epoch(cfg, fold, epoch, model, loss_fn, optimizer, train_loa
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
 
-        if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
+        if (step + 1) % cfg.save_step == 0:
             with torch.no_grad():
                 valid_score = valid_function(cfg, epoch, model, loss_fn,
                                              valid_loader, device)
             model.train()
 
             wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score,
-                      'epoch': epoch, 'step': step, 'lr': lr})
+                      'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+
+        if (step + 1) == len(train_loader):
+            with torch.no_grad():
+                valid_score = valid_function(cfg, epoch, model, loss_fn,
+                                             valid_loader, device)
+            wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'epoch': epoch,
+                      'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
                 if best_score['score'] > valid_score:
@@ -386,16 +393,15 @@ def train_valid_one_epoch(cfg, fold, epoch, model, loss_fn, optimizer, train_loa
                         f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}, step: {best_score['step']}")
                 else:
                     print(
-                        f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}, step: {best_score['step']}")
+                        f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
     if scheduler:
         scheduler.step()
-    # if cfg.mix_p == 0:
-    #     preds_epoch = np.concatenate(preds_all)
-    #     labels_epoch = np.concatenate(labels_all)
+    
+    preds_epoch = np.concatenate(preds_all)
+    labels_epoch = np.concatenate(labels_all)
 
-    #     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
-
-    #     return score_epoch, loss.detach().cpu().numpy()
+    train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
+    print(f'TRAIN: {train_score}, VALID: {valid_score}')
 
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
@@ -534,7 +540,7 @@ def main(cfg: DictConfig):
         elif cfg.loss == 'FOCALLoss':
             loss_fn = FOCALLoss(gamma=cfg.gamma)
 
-        best_score = {'score': 100, 'epoch': 0}
+        best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
