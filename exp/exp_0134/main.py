@@ -381,18 +381,18 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds, features = features_model(imgs, dense)
         if step == 0:
             features_list = features.detach().cpu().numpy()
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_list = np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)
-            elif cfg.loss == 'MSELoss':
+            else:
                 preds_list = preds.detach().cpu().numpy()
         else:
             features_list = np.concatenate(
                 [features_list, features.detach().cpu().numpy()], axis=0)
-            if cfg.loss == 'BCEWithLogitsLoss':
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
                     preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
-            elif cfg.loss == 'MSELoss':
+            else:
                 preds_list = np.concatenate([preds_list,
                                              preds.detach().cpu().numpy()], axis=0)
     result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
