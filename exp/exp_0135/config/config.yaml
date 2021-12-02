@@ -23,7 +23,7 @@ gamma: 0 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 1e-5
+lr: 1e-4
 weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
@@ -61,16 +61,16 @@ train_aug:
     height: ${img_size}
     width: ${img_size}
     p: 1.0
-  HorizontalFlip:
-    p: 0.25
-  VerticalFlip:
-    p: 0.25
-  RandomAugMix:
-    severity: 4
-    width: 4
-    depth: 5
-    alpha: 1.
-    p: 1.
+  # HorizontalFlip:
+  #   p: 0.25
+  # VerticalFlip:
+  #   p: 0.25
+  # RandomAugMix:
+  #   severity: 4
+  #   width: 4
+  #   depth: 5
+  #   alpha: 1.
+  #   p: 1.
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
