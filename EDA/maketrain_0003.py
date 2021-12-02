@@ -73,7 +73,7 @@ def preprocess(data_path, phase):
     df = pd.read_csv(os.path.join(data_path, f'{phase}.csv'))
 
     df['file_path'] = df['Id'].apply(
-        lambda x: os.path.join(data_path, f'{phase}/{x}.jpg'))
+        lambda x: os.path.join(data_path, f'train/{x}.jpg'))
 
     hash_threshold = 0.9
     print(f'hash threshold = {hash_threshold}')
