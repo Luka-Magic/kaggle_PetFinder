@@ -85,9 +85,10 @@ def preprocess(data_path, phase):
     df_keep, df_remove = remove_noisy(
         hash_group_df, threshold=remove_threshold)
     print(f'keep: {df_keep.shape[0]}, remove: {df_remove.shape[0]}')
+
     drop_columns = [column for column in df_keep.columns if re.search(
         'feature*', column) or column == 'preds']
-    df_keep.drop(columns=drop_columns)
+    df_keep.drop(columns=drop_columns, inplace=True)
 
     return df_keep
 
