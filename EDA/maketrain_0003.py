@@ -24,6 +24,7 @@ def hash_grouping(df, threshold):
     ]
     hashes = []
     for path in tqdm(df.file_path, total=df.shape[0]):
+        print(path)
         image = cv2.imread(path)
         image = Image.fromarray(image)
         hashes.append(np.array([f(image).hash for f in funcs]).reshape(256))
