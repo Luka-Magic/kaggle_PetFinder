@@ -19,12 +19,6 @@ def hash_grouping(df, threshold):
     funcs = [
         imagehash.average_hash,
         imagehash.phash,
-        imagehash.dhash,
-        imagehash.whash,
-    ]
-    hashes = []
-    for path in tqdm(df.file_path, total=df.shape[0]):
-        print(path)
         image = cv2.imread(path)
         image = Image.fromarray(image)
         hashes.append(np.array([f(image).hash for f in funcs]).reshape(256))
@@ -74,7 +68,7 @@ def preprocess(data_path, phase):
     df = pd.read_csv(os.path.join(data_path, f'{phase}.csv'))
 
     df['file_path'] = df['Id'].apply(
-        lambda x: '/content/drive/MyDrive/kaggle_PetFinder/data/train/{x}.jpg')
+        lambda x: f'/content/drive/MyDrive/kaggle_PetFinder/data/train/{x}.jpg')
 
     hash_threshold = 0.9
     print(f'hash threshold = {hash_threshold}')
