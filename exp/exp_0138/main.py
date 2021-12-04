@@ -159,10 +159,11 @@ class GradeLabelBCEWithLogits(nn.Module):
     def forward(self, preds, target):
         bs = target.shape[0]
         labels_temp = target.view(-1, 1).repeat(1, 10)
-        labels = (labels_temp - torch.Tensor(list(range(0, 100, 10))).repeat(bs, 1)).apply_(self.f)
+        labels = (labels_temp - torch.Tensor(list(range(0, 100, 10))
+                                             ).repeat(bs, 1).to(device)).apply_(self.f)
         print(labels)
         return a
-    
+
     def f(self, x):
         if x >= 10.:
             return 1.
