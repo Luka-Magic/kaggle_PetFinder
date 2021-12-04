@@ -157,6 +157,7 @@ class GradeLabelBCEWithLogits(nn.Module):
         super().__init__()
 
     def forward(self, preds, target):
+        print(target)
         labels = self.get_label(target)
         bcewithlogits = F.binary_cross_entropy_with_logits
         return sum([bcewithlogits(preds[:, i], labels[i].to(torch.float16)) for i in range(10)])
