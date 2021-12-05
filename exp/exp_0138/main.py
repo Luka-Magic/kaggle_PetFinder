@@ -225,7 +225,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
         preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
-        preds_temp = np.sum(np.concatenate(preds_all * 10), axis=1)
+        preds_temp = np.sum(np.concatenate(preds_all) * 10, axis=1)
         labels_temp = np.concatenate(labels_all)
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
@@ -235,7 +235,7 @@ def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, 
     lr = get_lr(optimizer)
     if scheduler:
         scheduler.step()
-    preds_epoch = np.sum(np.concatenate(preds_all * 10), axis=1)
+    preds_epoch = np.sum(np.concatenate(preds_all) * 10, axis=1)
     labels_epoch = np.concatenate(labels_all)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
@@ -264,7 +264,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
-        preds_temp = np.sum(np.concatenate(preds_all * 10), axis=1)
+        preds_temp = np.sum(np.concatenate(preds_all) * 10, axis=1)
         labels_temp = np.concatenate(labels_all)
 
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
@@ -272,7 +272,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
         pbar.set_description(description)
 
-    preds_epoch = np.sum(np.concatenate(preds_all* 10), axis=1)
+    preds_epoch = np.sum(np.concatenate(preds_all) * 10, axis=1)
     labels_epoch = np.concatenate(labels_all)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
