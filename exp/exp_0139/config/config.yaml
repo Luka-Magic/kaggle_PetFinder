@@ -2,27 +2,29 @@
 data_path: /content/drive/MyDrive/kaggle_PetFinder/data
 wandb_project: kaggle_PF
 seed: 77
-epoch: 15
+epoch: 10
 fold: StratifiedKFold
 fold_num: 10
-use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+use_fold: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 model_arch: swin_large_patch4_window7_224
 device: cuda:0
-save: False
-result_output: False
+save: True
+save_step: 75
+result_output: True
+
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
 dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
 features_num: 128
 
 ######   Loss   ########################################
-loss: GradeLabelBCEWithLogits # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
-gamma: 0 # FOCALLoss
+loss: FOCALLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+gamma: 0.1 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
 lr: 1e-5
-weight_decay: 1e-2
+weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
 
@@ -47,9 +49,9 @@ valid_bs: 32
 num_workers: 2
 
 ##### MixUp #############################################
-mix_p: 0.
-init_nomix_epoch: 0
-last_nomix_epoch: 0
+mix_p: 0.5
+init_nomix_epoch: 1
+last_nomix_epoch: 1
 
 ##### Data Augmentation #################################
 padding: None
