@@ -3,6 +3,7 @@ from utils.loss import FOCALLoss, RMSELoss
 from utils.mixaug import mixup, cutmix
 from utils.make_columns import make_columns, len_columns
 from utils.augmix import RandomAugMix
+from utils.averagemeter import AverageMeter
 import warnings
 from omegaconf import DictConfig
 import hydra
@@ -23,12 +24,10 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import nn
-from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.cuda.amp import autocast, GradScaler
 import wandb
 import albumentations
-
 
 
 def load_data(cfg):
@@ -162,7 +161,6 @@ class GradeLabelBCEWithLogits(nn.Module):
         bcewithlogits = F.binary_cross_entropy_with_logits
         return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
 
-
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
                           transforms=get_transforms(cfg, 'train'))
@@ -197,54 +195,7 @@ def prepare_dataloader(cfg, train_df, valid_df):
     return train_loader, valid_loader, valid_tta_loader
 
 
-def train_one_epoch(cfg, epoch, model, loss_fn, optimizer, data_loader, device, scheduler, scaler):
-    def get_lr(optimizer):
-        for param_group in optimizer.param_groups:
-            return param_group['lr']
-
-    model.train()
-
-    pbar = tqdm(enumerate(data_loader), total=len(data_loader))
-
-    preds_all = []
-    labels_all = []
-
-    for step, (imgs, dense, labels) in pbar:
-        imgs = imgs.to(device).float()
-        dense = dense.to(device).float()
-        labels = labels.to(device).long()
-
-        with autocast():
-            preds = model(imgs, dense)
-            loss = loss_fn(preds, labels)
-
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-        optimizer.zero_grad()
-
-        preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
-        labels_all += [labels.detach().cpu().numpy()]
-
-        preds_temp = np.sum(np.concatenate(preds_all) * 10, axis=1)
-        labels_temp = np.concatenate(labels_all)
-        score = mean_squared_error(labels_temp, preds_temp) ** 0.5
-
-        description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
-        pbar.set_description(description)
-
-    lr = get_lr(optimizer)
-    if scheduler:
-        scheduler.step()
-    preds_epoch = np.sum(np.concatenate(preds_all) * 10, axis=1)
-    labels_epoch = np.concatenate(labels_all)
-
-    score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
-
-    return score_epoch, loss.detach().cpu().numpy(), lr
-
-
-def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
+def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
     model.eval()
 
@@ -253,6 +204,8 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
     preds_all = []
     labels_all = []
 
+    losses = AverageMeter()
+
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
@@ -261,6 +214,8 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         with autocast():
             preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
+        
+        losses.update(loss.item(), cfg.valid_bs)
 
         preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
@@ -278,7 +233,107 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
-    return score_epoch, loss.detach().cpu().numpy()
+    return score_epoch, losses.avg
+
+
+def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, valid_loader, device, scheduler, scaler, best_score, model_name):
+    def get_lr(optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
+    lr = get_lr(optimizer)
+
+    model.train()
+
+    pbar = tqdm(enumerate(train_loader), total=len(train_loader))
+
+    preds_all = []
+    labels_all = []
+
+    losses = AverageMeter()
+
+    for step, (imgs, dense, labels) in pbar:
+        imgs = imgs.to(device).float()
+        dense = dense.to(device).float()
+        labels = labels.to(device).long()
+
+        with autocast():
+            mix_p = np.random.rand()
+            mix_list = list(range(cfg.init_nomix_epoch,
+                            cfg.epoch-cfg.last_nomix_epoch))
+            if (mix_p < cfg.mix_p) and (epoch in mix_list):
+                imgs, labels = mixup(imgs, labels, 1.)
+                preds = model(imgs, dense)
+                loss = loss_fn(
+                    preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
+            else:
+                preds = model(imgs, dense)
+                loss = loss_fn(preds, labels)
+        losses.update(loss.item(), cfg.train_bs)
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        optimizer.zero_grad()
+
+        if cfg.mix_p == 0:
+            preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
+            labels_all += [labels.detach().cpu().numpy()]
+
+            preds_temp = np.sum(np.concatenate(preds_all) * 10, axis=1)
+            labels_temp = np.concatenate(labels_all)
+            train_score = mean_squared_error(labels_temp, preds_temp) ** 0.5
+
+            description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
+            pbar.set_description(description)
+
+        else:
+            description = f'epoch: {epoch}, mixup'
+            pbar.set_description(description)
+
+        if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
+            with torch.no_grad():
+                valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
+                                                           valid_loader, device)
+            model.train()
+
+            if cfg.mix_p == 0:
+                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                        'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+            else:
+                wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                           'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+
+            if (step + 1) == len(train_loader):
+                with torch.no_grad():
+                    valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
+                                                 valid_loader, device)
+                if cfg.mix_p == 0:                       
+                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                else:
+                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                        'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+            
+            if cfg.save:
+                if best_score['score'] > valid_score:
+                    torch.save(model.state_dict(), model_name)
+
+                    best_score['score'] = valid_score
+                    best_score['epoch'] = epoch
+                    best_score['step'] = step
+                    print(
+                        f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}, step: {best_score['step']}")
+                else:
+                    print(
+                        f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
+    if scheduler:
+        scheduler.step()
+    if cfg.mix_p == 0:
+        preds_epoch = np.concatenate(preds_all)
+        labels_epoch = np.concatenate(labels_all)
+        train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
+        print(f'TRAIN: {train_score}, VALID: {valid_score}')
+    else:
+        print(f'VALID: {valid_score}')
 
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
@@ -314,20 +369,32 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
-    preds_list = []
+    features_list = np.array([])
+    preds_list = np.array([])
     for step, (imgs, dense, _) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
         with autocast():
             with torch.no_grad():
-                preds = features_model(imgs, dense)
-        preds_list += [torch.sigmoid(preds).detach().cpu().numpy]
-    preds_class_all = np.concatenate(preds_list)
-    preds_all = np.sum(preds_class_all, axis=1)
-
-    result_df = pd.concat([result_df, pd.DataFrame(
-        preds_class_all, columns=[f'pred_{i}' for i in range(10)])], axis=1)
-    result_df['preds'] = preds_all
+                preds, features = features_model(imgs, dense)
+        if step == 0:
+            features_list = features.detach().cpu().numpy()
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                preds_list = np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)
+            else:
+                preds_list = preds.detach().cpu().numpy()
+        else:
+            features_list = np.concatenate(
+                [features_list, features.detach().cpu().numpy()], axis=0)
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
+            else:
+                preds_list = np.concatenate([preds_list,
+                                             preds.detach().cpu().numpy()], axis=0)
+    result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
+                          f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
     return result_df
 
 
@@ -336,10 +403,11 @@ def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
-    save_path = os.path.join(
-        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
+    if cfg.save:
+        save_path = os.path.join(
+            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
 
     train_df, test_df = load_data(cfg)
     if cfg.save:
@@ -350,6 +418,10 @@ def main(cfg: DictConfig):
     for fold in range(cfg.fold_num):
         if fold not in cfg.use_fold:
             continue
+
+        if cfg.save:
+            model_name = os.path.join(
+                save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
         if len(cfg.use_fold) == 1:
             wandb.init(project=cfg.wandb_project, entity='luka-magic',
@@ -365,8 +437,6 @@ def main(cfg: DictConfig):
 
         train_fold_df, valid_fold_df = preprocess(
             cfg, train_fold_df, valid_fold_df)
-
-        valid_rmse = {}
 
         train_loader, valid_loader, _ = prepare_dataloader(
             cfg, train_fold_df, valid_fold_df)
@@ -392,68 +462,24 @@ def main(cfg: DictConfig):
                 optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
         if cfg.loss == 'MSELoss':
-            reg_criterion = nn.MSELoss()
+            loss_fn = nn.MSELoss()
         elif cfg.loss == 'BCEWithLogitsLoss':
-            reg_criterion = nn.BCEWithLogitsLoss()
+            loss_fn = nn.BCEWithLogitsLoss()
         elif cfg.loss == 'RMSELoss':
-            reg_criterion = RMSELoss()
+            loss_fn = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
-            reg_criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits()
+            loss_fn = FOCALLoss(gamma=cfg.gamma)
 
-        best_score = {'score': 100, 'epoch': 0}
+        best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
-
-            train_start_time = time.time()
-            train_score_epoch, train_loss_epoch, lr = train_one_epoch(
-                cfg, epoch, model, loss_fn, optim, train_loader, device, scheduler, scaler)
-            train_finish_time = time.time()
-            print(
-                f'TRAIN {epoch}, score: {train_score_epoch:.4f}, time: {train_finish_time-train_start_time:.4f}')
-
-            # Valid Start
-
-            valid_start_time = time.time()
-
-            with torch.no_grad():
-                valid_score_epoch, valid_loss_epoch = valid_one_epoch(
-                    cfg, epoch, model, loss_fn, valid_loader, device)
-
-            valid_finish_time = time.time()
-
-            valid_rmse[epoch] = valid_score_epoch
-
-            print(
-                f'VALID {epoch}, score: {valid_score_epoch}, time: {valid_finish_time-valid_start_time:.4f}')
-
-            wandb.log({'train_rmse': train_score_epoch, 'train_loss': train_loss_epoch,
-                       'valid_rmse': valid_score_epoch, 'valid_loss': valid_loss_epoch,
-                       'epoch': epoch, 'lr': lr})
-
-            if cfg.save:
-                model_name = os.path.join(
-                    save_path, f"{cfg.model_arch}_fold_{fold}.pth")
-                if best_score['score'] > valid_score_epoch:
-                    torch.save(model.state_dict(), model_name)
-
-                    best_score['score'] = valid_score_epoch
-                    best_score['epoch'] = epoch
-                    print(
-                        f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
-                else:
-                    print(
-                        f"No update. best valid rmse: {best_score['score']}, epoch: {best_score['epoch']}")
-
-        # print Score
-
-        valid_rmse_sorted = sorted(valid_rmse.items(), key=lambda x: x[1])
-        print('='*40)
-        print(f'Fold {fold}')
-        for i, (epoch, rmse) in enumerate(valid_rmse_sorted):
-            print(f'No.{i+1}: {rmse:.5f} (epoch{epoch})')
-        print('='*40)
+            if cfg.mix_p == 0:
+                train_valid_one_epoch(
+                    cfg, epoch, model, loss_fn, optim, train_loader, valid_loader, device, scheduler, scaler, best_score, model_name)
+            else:
+                train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
+                                      valid_loader, device, scheduler, scaler, best_score, model_name)
 
         del model
         gc.collect()
