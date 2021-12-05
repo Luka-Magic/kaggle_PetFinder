@@ -160,7 +160,7 @@ class GradeLabelBCEWithLogits(nn.Module):
         bs = target.shape[0]
         labels_temp = target.view(-1, 1).repeat(1, 10)
         labels = (labels_temp - torch.Tensor(list(range(0, 100, 10))
-                                             ).repeat(bs, 1).to('cuda:0')).apply_(self.f)
+                                             ).repeat(bs, 1)).apply_(self.f)
         print(labels)
         return a
 
