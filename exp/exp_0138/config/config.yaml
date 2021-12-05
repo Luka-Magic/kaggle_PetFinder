@@ -10,8 +10,6 @@ model_arch: swin_large_patch4_window7_224
 device: cuda:0
 save: False
 result_output: False
-reg_gamma: 1
-
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
 dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')

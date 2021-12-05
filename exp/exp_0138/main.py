@@ -157,7 +157,8 @@ class GradeLabelBCEWithLogits(nn.Module):
         super().__init__()
 
     def forward(self, preds, target):
-        label = [(target > i).to(torch.float16) for i in range(5, 105, 10)]
+        label = [(target > i).to(torch.float16)
+                 * 10 for i in range(5, 105, 10)]
         bcewithlogits = F.binary_cross_entropy_with_logits
         return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
 
@@ -272,7 +273,7 @@ def valid_one_epoch(cfg, epoch, model, loss_fn, data_loader, device):
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
         pbar.set_description(description)
 
-    preds_epoch = np.concatenate(preds_all)
+    preds_epoch = np.sum(np.concatenate(preds_all), axis=1)
     labels_epoch = np.concatenate(labels_all)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
