@@ -157,20 +157,9 @@ class GradeLabelBCEWithLogits(nn.Module):
         super().__init__()
 
     def forward(self, preds, target):
-        bs = target.shape[0]
-        labels_temp = target.view(-1, 1).repeat(1, 10)
-        labels = (labels_temp - torch.Tensor(list(range(0, 100, 10))
-                                             ).repeat(bs, 1)).apply_(self.f)
-        print(labels)
-        return a
-
-    def f(self, x):
-        if x >= 10.:
-            return 1.
-        elif x < 0.:
-            return 0.
-        else:
-            return x / 10
+        label = [(target > i).to(torch.float16) for i in range(5, 105, 10)]
+        bcewithlogits = F.binary_cross_entropy_with_logits
+        return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
