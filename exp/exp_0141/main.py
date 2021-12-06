@@ -161,6 +161,7 @@ class GradeLabelBCEWithLogits(nn.Module):
         bcewithlogits = F.binary_cross_entropy_with_logits
         return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
 
+
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
                           transforms=get_transforms(cfg, 'train'))
@@ -214,7 +215,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         with autocast():
             preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
-        
+
         losses.update(loss.item(), cfg.valid_bs)
 
         preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
@@ -282,7 +283,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             labels_temp = np.concatenate(labels_all)
             train_score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
-            description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
+            description = f'epoch: {epoch}, loss: {loss:.4f}, score: {train_score:.4f}'
             pbar.set_description(description)
 
         else:
@@ -297,7 +298,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
             if cfg.mix_p == 0:
                 wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                        'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+                           'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
             else:
                 wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
                            'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
@@ -305,14 +306,14 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             if (step + 1) == len(train_loader):
                 with torch.no_grad():
                     valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
-                                                 valid_loader, device)
-                if cfg.mix_p == 0:                       
+                                                               valid_loader, device)
+                if cfg.mix_p == 0:
                     wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
                 else:
                     wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
-                        'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
-            
+                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+
             if cfg.save:
                 if best_score['score'] > valid_score:
                     torch.save(model.state_dict(), model_name)
@@ -369,32 +370,21 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
-    features_list = np.array([])
-    preds_list = np.array([])
+    preds_list = []
     for step, (imgs, dense, _) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
         with autocast():
             with torch.no_grad():
-                preds, features = features_model(imgs, dense)
-        if step == 0:
-            features_list = features.detach().cpu().numpy()
-            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-                preds_list = np.clip(torch.sigmoid(
-                    preds).detach().cpu().numpy() * 100, 1, 100)
-            else:
-                preds_list = preds.detach().cpu().numpy()
-        else:
-            features_list = np.concatenate(
-                [features_list, features.detach().cpu().numpy()], axis=0)
-            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-                preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
-                    preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
-            else:
-                preds_list = np.concatenate([preds_list,
-                                             preds.detach().cpu().numpy()], axis=0)
-    result_df = pd.concat([result_df, pd.DataFrame(features_list, columns=[
-                          f'feature_{i}' for i in range(cfg.features_num)]), pd.DataFrame(preds_list, columns=['preds'])], axis=1)
+                preds = features_model(imgs, dense)
+        preds_list += [torch.sigmoid(preds).detach().cpu().numpy()]
+
+    preds_class_all = np.concatenate(preds_list)
+    preds_all = np.sum(preds_class_all * 10, axis=1)
+
+    result_df = pd.concat([result_df, pd.DataFrame(
+        preds_class_all, columns=[f'pred_{i}' for i in range(10)])], axis=1)
+    result_df['preds'] = preds_all
     return result_df
 
 
@@ -469,17 +459,14 @@ def main(cfg: DictConfig):
             loss_fn = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
             loss_fn = FOCALLoss(gamma=cfg.gamma)
+        loss_fn = GradeLabelBCEWithLogits()
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
-            if cfg.mix_p == 0:
-                train_valid_one_epoch(
-                    cfg, epoch, model, loss_fn, optim, train_loader, valid_loader, device, scheduler, scaler, best_score, model_name)
-            else:
-                train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                      valid_loader, device, scheduler, scaler, best_score, model_name)
+            train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
+                                  valid_loader, device, scheduler, scaler, best_score, model_name)
 
         del model
         gc.collect()

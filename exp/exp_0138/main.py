@@ -321,7 +321,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         with autocast():
             with torch.no_grad():
                 preds = features_model(imgs, dense)
-        preds_list += [torch.sigmoid(preds).detach().cpu().numpy]
+        preds_list += [torch.sigmoid(preds).detach().cpu().numpy()]
     preds_class_all = np.concatenate(preds_list)
     preds_all = np.sum(preds_class_all, axis=1)
 
