@@ -291,7 +291,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
 
-        if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
+        if (step + 1) % cfg.save_step == 0:
             with torch.no_grad():
                 valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
                                                            valid_loader, device)
@@ -304,16 +304,17 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
                            'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
 
-            if (step + 1) == len(train_loader):
-                with torch.no_grad():
-                    valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
-                                                               valid_loader, device)
-                if cfg.mix_p == 0:
-                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
-                else:
-                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
-                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+        if (step + 1) == len(train_loader):
+            with torch.no_grad():
+                valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
+                                                           valid_loader, device)
+            model.train()
+            if cfg.mix_p == 0:
+                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                           'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+            else:
+                wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                           'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
                 if best_score['score'] > valid_score:
@@ -387,6 +388,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         preds_class_all, columns=[f'pred_{i}' for i in range(10)])], axis=1)
     result_df['preds'] = preds_all
     return result_df
+
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
