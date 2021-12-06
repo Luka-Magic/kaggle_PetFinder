@@ -330,7 +330,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     if scheduler:
         scheduler.step()
     if cfg.mix_p == 0:
-        preds_epoch = np.concatenate(preds_all)
+        preds_epoch = np.sum(np.concatenate(preds_all) * 10, axis=1)
         labels_epoch = np.concatenate(labels_all)
         train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
         print(f'TRAIN: {train_score}, VALID: {valid_score}')
@@ -387,7 +387,6 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         preds_class_all, columns=[f'pred_{i}' for i in range(10)])], axis=1)
     result_df['preds'] = preds_all
     return result_df
-
 
 @hydra.main(config_path='config', config_name='config')
 def main(cfg: DictConfig):
@@ -452,14 +451,14 @@ def main(cfg: DictConfig):
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
-        if cfg.loss == 'MSELoss':
-            loss_fn = nn.MSELoss()
-        elif cfg.loss == 'BCEWithLogitsLoss':
-            loss_fn = nn.BCEWithLogitsLoss()
-        elif cfg.loss == 'RMSELoss':
-            loss_fn = RMSELoss()
-        elif cfg.loss == 'FOCALLoss':
-            loss_fn = FOCALLoss(gamma=cfg.gamma)
+        # if cfg.loss == 'MSELoss':
+        #     loss_fn = nn.MSELoss()
+        # elif cfg.loss == 'BCEWithLogitsLoss':
+        #     loss_fn = nn.BCEWithLogitsLoss()
+        # elif cfg.loss == 'RMSELoss':
+        #     loss_fn = RMSELoss()
+        # elif cfg.loss == 'FOCALLoss':
+        #     loss_fn = FOCALLoss(gamma=cfg.gamma)
         loss_fn = GradeLabelBCEWithLogits()
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
