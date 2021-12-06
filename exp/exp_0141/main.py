@@ -291,43 +291,40 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
 
-        if (step + 1) % cfg.save_step == 0:
+        if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
             with torch.no_grad():
                 valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
                                                            valid_loader, device)
             model.train()
 
-            if cfg.mix_p == 0:
-                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                           'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
-            else:
-                wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
-                           'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+            if (step + 1) % cfg.save_step == 0:
+                if cfg.mix_p == 0:
+                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+                else:
+                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
 
-        if (step + 1) == len(train_loader):
-            with torch.no_grad():
-                valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
-                                                           valid_loader, device)
-            model.train()
-            if cfg.mix_p == 0:
-                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                           'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
-            else:
-                wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
-                           'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+            if (step + 1) == len(train_loader):
+                if cfg.mix_p == 0:
+                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                else:
+                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
-        if cfg.save:
-            if best_score['score'] > valid_score:
-                torch.save(model.state_dict(), model_name)
+            if cfg.save:
+                if best_score['score'] > valid_score:
+                    torch.save(model.state_dict(), model_name)
 
-                best_score['score'] = valid_score
-                best_score['epoch'] = epoch
-                best_score['step'] = step
-                print(
-                    f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}, step: {best_score['step']}")
-            else:
-                print(
-                    f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
+                    best_score['score'] = valid_score
+                    best_score['epoch'] = epoch
+                    best_score['step'] = step
+                    print(
+                        f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}, step: {best_score['step']}")
+                else:
+                    print(
+                        f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
     if scheduler:
         scheduler.step()
     if cfg.mix_p == 0:
