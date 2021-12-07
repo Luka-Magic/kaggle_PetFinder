@@ -148,9 +148,8 @@ class pf_model(nn.Module):
         # )
 
     def forward(self, input, dense):
-        features = self.model(input)
-        cls = self.class_branch(features)
-        return cls
+        x = self.model(input)
+        return x
 
 
 class GradeLabelBCEWithLogits(nn.Module):
