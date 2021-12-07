@@ -271,7 +271,8 @@ def get_preds(cfg, preds):
             outputs += [np.sum((torch.sigmoid(pred).detach().cpu().numpy()
                                 * interval), axis=1)[:, np.newaxis]]
     # print([output.shape for output in outputs])
-    print(np.mean(np.concatenate(outputs, axis=1), axis=1).shape)
+    print((np.mean(np.concatenate(outputs, axis=1), axis=1)
+          [:, np.newaxis]).shape)
     return np.mean(np.concatenate(outputs, axis=1), axis=1)[:, np.newaxis]
 
 
