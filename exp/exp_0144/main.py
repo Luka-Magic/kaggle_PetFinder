@@ -262,16 +262,15 @@ def get_preds(cfg, preds):
     for pred, cls in zip(preds, cfg.cls):
         if cls == 1:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-                outputs += np.clip(torch.sigmoid(
-                    pred).detach().cpu().numpy() * 100, 1, 100)
+                outputs += [np.clip(torch.sigmoid(
+                    pred).detach().cpu().numpy() * 100, 1, 100)]
             elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
-                outputs += np.clip(pred.detach().cpu().numpy(), 1, 100)
+                outputs += [np.clip(pred.detach().cpu().numpy(), 1, 100)]
         else:
             interval = 100 // cls
-            outputs += np.sum((torch.sigmoid(pred).detach().cpu().numpy()
-                              * interval), axis=1)[:, np.newaxis]
+            outputs += [np.sum((torch.sigmoid(pred).detach().cpu().numpy()
+                                * interval), axis=1)]
 
-        print(outputs)
     return np.mean(np.concatenate(outputs), axis=1)[:, np.newaxis]
 
 
