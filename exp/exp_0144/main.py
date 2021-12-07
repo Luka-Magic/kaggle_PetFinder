@@ -195,6 +195,7 @@ class GradeLabelBCEWithLogits(nn.Module):
     def __init__(self, cfg, reg_criterion):
         super().__init__()
         self.cls = cfg.cls
+        self.loss = cfg.loss
         self.cls_weights = cfg.cls_weights
         self.reg_criterion = reg_criterion
 
@@ -204,9 +205,10 @@ class GradeLabelBCEWithLogits(nn.Module):
         for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
             if cls == 1:
                 target_reg = target.float().view(-1, 1)
+                if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+                    target_reg /= 100
                 losses.append(self.reg_criterion(
                     preds[cls_i], target_reg) * weight)
-                print(cls, cls_i, preds[cls_i].shape, target_reg.shape)
                 continue
             else:
                 interval = 100 // cls
@@ -216,7 +218,6 @@ class GradeLabelBCEWithLogits(nn.Module):
                 labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
                 bcewithlogits = F.binary_cross_entropy_with_logits
                 losses.append(bcewithlogits(preds[cls_i], labels) * weight)
-        print(losses)
         return sum(losses)
 
 
