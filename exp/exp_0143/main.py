@@ -383,7 +383,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
     preds_all = np.sum(preds_class_all * range(1, 101), axis=1)
 
     result_df = pd.concat([result_df, pd.DataFrame(
-        preds_class_all, columns=[f'pred_{i}' for i in range(10)])], axis=1)
+        preds_class_all, columns=[f'pred_{i}' for i in range(100)])], axis=1)
     result_df['preds'] = preds_all
     return result_df
 

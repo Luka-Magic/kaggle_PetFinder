@@ -2,7 +2,7 @@
 data_path: /content/drive/MyDrive/kaggle_PetFinder/data
 wandb_project: kaggle_PF
 seed: 77
-epoch: 10
+epoch: 20
 fold: StratifiedKFold
 fold_num: 10
 use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -23,7 +23,7 @@ gamma: 0. # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 2e-5
+lr: 1e-4
 weight_decay: 1e-2
 beta1: 0.5
 beta2: 0.999
