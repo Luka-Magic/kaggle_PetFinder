@@ -260,7 +260,6 @@ def get_preds(cfg, preds):
     '''
     outputs = []
     for pred, cls in zip(preds, cfg.cls):
-        print(pred.shape)
         if cls == 1:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 outputs += np.clip(torch.sigmoid(
@@ -271,7 +270,8 @@ def get_preds(cfg, preds):
             interval = 100 // cls
             outputs += np.sum((torch.sigmoid(pred).detach().cpu().numpy()
                               * interval), axis=1)[:, np.newaxis]
-    print(outputs)
+
+        print(outputs)
     return np.mean(np.concatenate(outputs), axis=1)[:, np.newaxis]
 
 
