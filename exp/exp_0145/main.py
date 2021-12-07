@@ -465,7 +465,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
                 preds = features_model(imgs, dense)
                 preds_result = get_preds(cfg, preds)
         for i, pred in enumerate(preds):
-            preds_list[i].append(pred)
+            preds_list[i].append(torch.sigmoid(pred).detach().cpu().numpy())
         preds_result_list += [preds_result]
 
     preds_class_all = np.concatenate(
