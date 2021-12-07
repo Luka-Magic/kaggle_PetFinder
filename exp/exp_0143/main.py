@@ -1,5 +1,5 @@
 # Python Libraries
-from utils.loss import FOCALLoss, RMSELoss
+from utils.loss import FOCALLoss, RMSELoss, LabelSmoothingCrossEntropy
 from utils.mixaug import mixup, cutmix
 from utils.make_columns import make_columns, len_columns
 from utils.augmix import RandomAugMix
@@ -161,6 +161,8 @@ class pf_model(nn.Module):
 #         label = [(target >= i).to(torch.float16) for i in range(10, 110, 10)]
 #         bcewithlogits = F.binary_cross_entropy_with_logits
 #         return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
+
+
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -459,7 +461,7 @@ def main(cfg: DictConfig):
         # elif cfg.loss == 'FOCALLoss':
         #     loss_fn = FOCALLoss(gamma=cfg.gamma)
         # loss_fn = GradeLabelBCEWithLogits()
-        loss_fn = nn.CrossEntropyLoss()
+        loss_fn = LabelSmoothingCrossEntropy()
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
