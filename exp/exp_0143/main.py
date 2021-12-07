@@ -218,8 +218,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
             loss = loss_fn(preds, labels)
 
         losses.update(loss.item(), cfg.valid_bs)
-
-        preds_all += [torch.nn.Softmax(preds).detach().cpu().numpy()]
+        softmax = nn.Softmax(dim=1)
+        preds_all += [softmax(preds).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.sum(np.concatenate(preds_all) * range(1, 101), axis=1)
@@ -277,7 +277,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         optimizer.zero_grad()
 
         if cfg.mix_p == 0:
-            preds_all += [torch.nn.Softmax(preds).detach().cpu().numpy()]
+            softmax = nn.Softmax(dim=1)
+            preds_all += [softmax(preds).detach().cpu().numpy()]
             labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.sum(np.concatenate(preds_all)
