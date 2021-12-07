@@ -36,7 +36,7 @@ T_0: ${epoch} # CAWR
 T_mult: 1 # CAWR
 eta_min: 1e-9 # CAWR
 
-pct_start: 0.3 # OCLR
+pct_start: 0.1 # OCLR
 div_factor: 25. # OCLR
 final_div_factor: 1000. # OCLR
 

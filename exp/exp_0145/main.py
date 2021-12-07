@@ -316,7 +316,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     def get_lr(optimizer):
         for param_group in optimizer.param_groups:
             return param_group['lr']
-    lr = get_lr(optimizer)
 
     model.train()
 
@@ -358,6 +357,9 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         scaler.update()
         optimizer.zero_grad()
 
+        if scheduler:
+            scheduler.step()
+
         if cfg.mix_p == 0:
             preds_all += [get_preds(cfg, preds)]
             labels_all += [labels.detach().cpu().numpy()]
@@ -373,12 +375,14 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         else:
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
-
+        
         if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
             with torch.no_grad():
                 valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
                                                            valid_loader, device)
             model.train()
+
+            lr = get_lr(optimizer)
 
             if (step + 1) % cfg.save_step == 0:
                 if cfg.mix_p == 0:
@@ -408,8 +412,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
-    if scheduler:
-        scheduler.step()
+        
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
@@ -528,11 +531,11 @@ def main(cfg: DictConfig):
 
         if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
+                optim, total_steps=cfg.epoch * len(train_loader), max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
         elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
-
+                optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
+        
         if cfg.loss == 'MSELoss':
             criterion = nn.MSELoss()
         elif cfg.loss == 'BCEWithLogitsLoss':
