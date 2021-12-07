@@ -320,6 +320,12 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     model.train()
 
+    if epoch == 0:
+        for name, param in model.named_parameters():
+            print(name)
+            # if re.search('model', name):
+            #     param.requires_grad = False
+
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
     preds_all = []
