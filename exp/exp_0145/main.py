@@ -375,7 +375,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         else:
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
-        
+
         if (step + 1) % cfg.save_step == 0 or (step + 1) == len(train_loader):
             with torch.no_grad():
                 valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
@@ -412,7 +412,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
-        
+
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
@@ -455,20 +455,27 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
-    preds_list = []
+    preds_list = [[] for _ in range(len(cfg.cls))]
+    preds_result_list = []
     for step, (imgs, dense, _) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
         with autocast():
             with torch.no_grad():
                 preds = features_model(imgs, dense)
-        preds_list += [torch.sigmoid(preds).detach().cpu().numpy()]
+                preds_result = get_preds(preds)
+        for i, pred in enumerate(preds):
+            preds_list[i].append(pred)
+        preds_result_list += [preds_result]
 
-    preds_class_all = np.concatenate(preds_list)
-    preds_all = np.sum(preds_class_all, axis=1)
+    preds_class_all = np.concatenate(
+        [np.concatenate(preds_list[i]) for i in range(len(cfg.cls))], axis=1)
+    preds_all = np.concatenate(preds_result_list)
+
+    cls_columns = [f'pred_{cls}_{c}' for cls in cfg.cls for c in range(cls)]
 
     result_df = pd.concat([result_df, pd.DataFrame(
-        preds_class_all, columns=[f'pred_{i}' for i in range(100)])], axis=1)
+        preds_class_all, columns=cls_columns)], axis=1)
     result_df['preds'] = preds_all
     return result_df
 
@@ -535,7 +542,7 @@ def main(cfg: DictConfig):
         elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
-        
+
         if cfg.loss == 'MSELoss':
             criterion = nn.MSELoss()
         elif cfg.loss == 'BCEWithLogitsLoss':
