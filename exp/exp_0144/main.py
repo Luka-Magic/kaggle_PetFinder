@@ -270,7 +270,6 @@ def get_preds(cfg, preds):
             interval = 100 // cls
             outputs += [np.sum((torch.sigmoid(pred).detach().cpu().numpy()
                                 * interval), axis=1)[:, np.newaxis]]
-    # print([output.shape for output in outputs])
     print((np.mean(np.concatenate(outputs, axis=1), axis=1)
           [:, np.newaxis]).shape)
     return np.mean(np.concatenate(outputs, axis=1), axis=1)[:, np.newaxis]
@@ -304,9 +303,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         #     preds = np.clip(preds[0].detach().cpu().numpy(), 1, 100)
 
         preds = get_preds(cfg, preds)
-
         labels = labels.detach().cpu().numpy()
-
+        print(preds)
         preds_all += [preds]
         labels_all += [labels]
         # preds_temp = np.sum(np.concatenate(preds_all), axis=1)
