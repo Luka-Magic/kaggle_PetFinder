@@ -286,7 +286,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             preds_temp = np.sum(np.concatenate(preds_all), axis=1)
             labels_temp = np.concatenate(labels_all)
             train_score = mean_squared_error(labels_temp, preds_temp) ** 0.5
-
+            
             description = f'epoch: {epoch}, loss: {loss:.4f}, score: {train_score:.4f}'
             pbar.set_description(description)
 
