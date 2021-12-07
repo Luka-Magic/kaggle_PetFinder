@@ -268,6 +268,7 @@ def get_preds(cfg, preds):
                 outputs += np.clip(pred.detach().cpu().numpy(), 1, 100)
         else:
             interval = 100 // cls
+            print(torch.sigmoid(pred).detach().cpu().numpy().shape)
             outputs += np.sum(torch.sigmoid(pred).detach().cpu().numpy()
                               * interval, axis=1)
     print(np.mean(np.concatenate(outputs), axis=1).shape)
