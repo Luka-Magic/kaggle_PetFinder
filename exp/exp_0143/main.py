@@ -219,7 +219,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
         losses.update(loss.item(), cfg.valid_bs)
 
-        preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
+        preds_all += [torch.nn.Softmax(preds).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.sum(np.concatenate(preds_all) * range(1, 101), axis=1)
