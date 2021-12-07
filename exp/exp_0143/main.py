@@ -270,7 +270,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             else:
                 preds = model(imgs, dense)
                 loss = loss_fn(preds, labels)
-        # losses.update(loss.item(), cfg.train_bs)
+        losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -284,10 +284,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             preds_temp = np.sum(np.concatenate(preds_all)
                                 * range(1, 101), axis=1)
             labels_temp = np.concatenate(labels_all)
-            print(preds_all)
-
             train_score = mean_squared_error(labels_temp, preds_temp) ** 0.5
-            print(train_score)
 
             description = f'epoch: {epoch}, loss: {loss:.4f}, score: {train_score:.4f}'
             pbar.set_description(description)
