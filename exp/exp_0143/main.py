@@ -277,7 +277,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         optimizer.zero_grad()
 
         if cfg.mix_p == 0:
-            preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
+            preds_all += [torch.nn.Softmax(preds).detach().cpu().numpy()]
             labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.sum(np.concatenate(preds_all)
