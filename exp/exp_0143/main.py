@@ -269,11 +269,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
                 preds = model(imgs, dense)
-                print(preds.shape)
-                print(labels.shape)
                 loss = loss_fn(preds, labels)
-                print(loss)
-        losses.update(loss.item(), cfg.train_bs)
+        # losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
