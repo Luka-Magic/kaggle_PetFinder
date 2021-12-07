@@ -206,7 +206,7 @@ class GradeLabelBCEWithLogits(nn.Module):
                 target_reg = target.float().view(-1, 1)
                 losses.append(self.reg_criterion(
                     preds[cls_i], target_reg) * weight)
-                print(cls, cls_i, preds.shape, target_reg.shape)
+                print(cls, cls_i, preds[cls_i].shape, target_reg.shape)
                 continue
             else:
                 interval = 100 // cls
