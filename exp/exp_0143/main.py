@@ -140,27 +140,27 @@ class pf_model(nn.Module):
             self.n_features = self.model.classifier.in_features
             self.model.classifier = nn.Identity()
 
-        self.class_10_branch = nn.Sequential(
+        self.class_100_branch = nn.Sequential(
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 10)
+            nn.Linear(256, 100)
         )
 
     def forward(self, input, dense):
         features = self.model(input)
-        class_10 = self.class_10_branch(features)
-        return class_10
+        class_100 = self.class_100_branch(features)
+        return class_100
 
 
-class GradeLabelBCEWithLogits(nn.Module):
-    def __init__(self):
-        super().__init__()
+# class GradeLabelBCEWithLogits(nn.Module):
+#     def __init__(self):
+#         super().__init__()
 
-    def forward(self, preds, target):
-        label = [(target >= i).to(torch.float16) for i in range(10, 110, 10)]
-        bcewithlogits = F.binary_cross_entropy_with_logits
-        return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
+#     def forward(self, preds, target):
+#         label = [(target >= i).to(torch.float16) for i in range(10, 110, 10)]
+#         bcewithlogits = F.binary_cross_entropy_with_logits
+#         return sum([bcewithlogits(preds[:, i], label[i]) for i in range(10)])
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -222,7 +222,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
-        preds_temp = np.sum(np.concatenate(preds_all) * 10, axis=1)
+        preds_temp = np.sum(np.concatenate(preds_all) * range(1, 101), axis=1)
         labels_temp = np.concatenate(labels_all)
 
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
@@ -230,7 +230,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
         pbar.set_description(description)
 
-    preds_epoch = np.sum(np.concatenate(preds_all) * 10, axis=1)
+    preds_epoch = np.sum(np.concatenate(preds_all) * range(1, 101), axis=1)
     labels_epoch = np.concatenate(labels_all)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
@@ -280,13 +280,13 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
             labels_all += [labels.detach().cpu().numpy()]
 
-            preds_temp = np.sum(np.concatenate(preds_all) * 10, axis=1)
+            preds_temp = np.sum(np.concatenate(preds_all)
+                                * range(1, 101), axis=1)
             labels_temp = np.concatenate(labels_all)
             train_score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
             description = f'epoch: {epoch}, loss: {loss:.4f}, score: {train_score:.4f}'
             pbar.set_description(description)
-
         else:
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
@@ -328,7 +328,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     if scheduler:
         scheduler.step()
     if cfg.mix_p == 0:
-        preds_epoch = np.sum(np.concatenate(preds_all) * 10, axis=1)
+        preds_epoch = np.sum(np.concatenate(preds_all) * range(1, 101), axis=1)
         labels_epoch = np.concatenate(labels_all)
         train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
         print(f'TRAIN: {train_score}, VALID: {valid_score}')
@@ -379,7 +379,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         preds_list += [torch.sigmoid(preds).detach().cpu().numpy()]
 
     preds_class_all = np.concatenate(preds_list)
-    preds_all = np.sum(preds_class_all * 10, axis=1)
+    preds_all = np.sum(preds_class_all * range(1, 101), axis=1)
 
     result_df = pd.concat([result_df, pd.DataFrame(
         preds_class_all, columns=[f'pred_{i}' for i in range(10)])], axis=1)
@@ -458,7 +458,8 @@ def main(cfg: DictConfig):
         #     loss_fn = RMSELoss()
         # elif cfg.loss == 'FOCALLoss':
         #     loss_fn = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits()
+        # loss_fn = GradeLabelBCEWithLogits()
+        loss_fn = nn.CrossEntropyLoss()
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
