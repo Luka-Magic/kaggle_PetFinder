@@ -154,13 +154,16 @@ class pf_model(nn.Module):
 
 
 class GradeLabelBCEWithLogits(nn.Module):
-    def __init__(self):
+    def __init__(self, class_num: int):
         super().__init__()
+        self.class_num = class_num
 
     def forward(self, preds, target):
-        label = [(target >= i).to(torch.float16) for i in range(1, 101)]
+        interval = 100 // self.class_num
+        label = [(target >= i).to(torch.float16)
+                 for i in range(interval, 100+interval, interval)]
         bcewithlogits = F.binary_cross_entropy_with_logits
-        return sum([bcewithlogits(preds[:, i], label[i]) for i in range(100)])
+        return sum([bcewithlogits(preds[:, i], label[i]) for i in range(self.class_num)]) / self.class_num
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -458,7 +461,7 @@ def main(cfg: DictConfig):
         #     loss_fn = RMSELoss()
         # elif cfg.loss == 'FOCALLoss':
         #     loss_fn = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits()
+        loss_fn = GradeLabelBCEWithLogits(class_num=100)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
