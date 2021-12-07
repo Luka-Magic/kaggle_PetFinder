@@ -253,11 +253,25 @@ def prepare_dataloader(cfg, train_df, valid_df):
     )
     return train_loader, valid_loader, valid_tta_loader
 
+
 def get_preds(cfg, preds):
     '''
-        output: numpy ()
+        output: numpy (bs, 1)
     '''
-
+    outputs = []
+    for pred, cls in zip(preds, cfg.cls):
+        if cls == 1:
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                outputs += np.clip(torch.sigmoid(
+                    pred).detach().cpu().numpy() * 100, 1, 100)
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+                outputs += np.clip(pred.detach().cpu().numpy(), 1, 100)
+        else:
+            interval = 100 // cls
+            outputs += np.sum(torch.sigmoid(pred).detach().cpu().numpy(),
+                              axis=1) * interval
+    print(np.mean(np.concatenate(outputs), axis=1).shape)
+    return np.mean(np.concatenate(outputs), axis=1)
 
 
 def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
@@ -281,13 +295,13 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
             loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
-        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-            preds = np.clip(torch.sigmoid(
-                preds[0]).detach().cpu().numpy() * 100, 1, 100)
-        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
-            preds = np.clip(preds[0].detach().cpu().numpy(), 1, 100)
-        print(preds.shape)
-        # preds = get_preds(cfg, preds)
+        # if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+        #     preds = np.clip(torch.sigmoid(
+        #         preds[0]).detach().cpu().numpy() * 100, 1, 100)
+        # elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+        #     preds = np.clip(preds[0].detach().cpu().numpy(), 1, 100)
+
+        preds = get_preds(cfg, preds)
 
         labels = labels.detach().cpu().numpy()
 
@@ -350,11 +364,13 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         optimizer.zero_grad()
 
         if cfg.mix_p == 0:
-            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-                preds_all += [np.clip(torch.sigmoid(
-                    preds[0]).detach().cpu().numpy() * 100, 1, 100)]
-            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
-                preds_all += [np.clip(preds[0].detach().cpu().numpy(), 1, 100)]
+            # if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            #     preds_all += [np.clip(torch.sigmoid(
+            #         preds[0]).detach().cpu().numpy() * 100, 1, 100)]
+            # elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+            #     preds_all += [np.clip(preds[0].detach().cpu().numpy(), 1, 100)]
+
+            preds = get_preds(cfg, preds)
             labels_all += [labels.detach().cpu().numpy()]
 
             # preds_temp = np.sum(np.concatenate(preds_all), axis=1)
