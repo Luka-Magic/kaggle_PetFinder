@@ -273,7 +273,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         with autocast():
             preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
-
+        print(preds[0][0])
         losses.update(loss.item(), cfg.valid_bs)
 
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
