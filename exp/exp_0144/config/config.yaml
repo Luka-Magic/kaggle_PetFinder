@@ -6,7 +6,7 @@ epoch: 10
 fold: StratifiedKFold
 fold_num: 10
 use_fold: [0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-model_arch: swin_large_patch4_window7_224_in22k
+model_arch: swin_large_patch4_window7_224
 device: cuda:0
 save: True
 save_step: 75
@@ -18,13 +18,13 @@ dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
 features_num: 128
 
 ######   Loss   ########################################
-loss: FOCALLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
-gamma: 0.1 # FOCALLoss
+loss: GradeLabelBCEWithLogits # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+gamma: 0. # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 1e-5
-weight_decay: 1e-6
+lr: 2e-5
+weight_decay: 1e-2
 beta1: 0.5
 beta2: 0.999
 
