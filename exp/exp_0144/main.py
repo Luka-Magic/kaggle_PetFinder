@@ -273,7 +273,6 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         with autocast():
             preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
-        print(preds[0][0])
         losses.update(loss.item(), cfg.valid_bs)
 
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
@@ -296,7 +295,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         description = f'epoch: {epoch}, loss: {loss:.4f}, score: {score:.4f}'
         pbar.set_description(description)
 
-    preds_epoch = np.sum(np.concatenate(preds_all), axis=1)
+    # preds_epoch = np.sum(np.concatenate(preds_all), axis=1)
+    preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
 
     score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
@@ -400,7 +400,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     if scheduler:
         scheduler.step()
     if cfg.mix_p == 0:
-        preds_epoch = np.sum(np.concatenate(preds_all), axis=1)
+        # preds_epoch = np.sum(np.concatenate(preds_all), axis=1)
+        preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
         train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
         print(f'TRAIN: {train_score}, VALID: {valid_score}')
