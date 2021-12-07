@@ -218,7 +218,6 @@ class GradeLabelBCEWithLogits(nn.Module):
                 labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
                 bcewithlogits = F.binary_cross_entropy_with_logits
                 losses.append(bcewithlogits(preds[cls_i], labels) * weight)
-        print(losses)
         return sum(losses)
 
 
