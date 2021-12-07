@@ -203,8 +203,9 @@ class GradeLabelBCEWithLogits(nn.Module):
         losses = []
         for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
             if cls == 1:
+                target_reg = target.float().view(-1, 1)
                 losses.append(self.reg_criterion(
-                    preds[cls_i], target) * weight)
+                    preds[cls_i], target_reg) * weight)
                 continue
             else:
                 interval = 100 // cls
