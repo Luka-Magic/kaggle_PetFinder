@@ -210,12 +210,11 @@ class GradeLabelBCEWithLogits(nn.Module):
                 interval = 100 // cls
                 dif = torch.Tensor(
                     [i for i in range(0, 100, interval)]).repeat(bs, 1).to('cuda:0').float()
-                target = torch.t(target.repeat(cls, 1))
-                print(target.shape)
-                print(dif.shape)
-                labels = torch.clamp((target - dif) / interval, 0., 1.)
+                target_rep = torch.t(target.repeat(cls, 1))
+                labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
                 bcewithlogits = F.binary_cross_entropy_with_logits
                 losses.append(bcewithlogits(preds[cls_i], labels) * weight)
+        print(losses)
         return sum(losses)
 
 
