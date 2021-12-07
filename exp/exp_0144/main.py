@@ -253,6 +253,12 @@ def prepare_dataloader(cfg, train_df, valid_df):
     )
     return train_loader, valid_loader, valid_tta_loader
 
+def get_preds(cfg, preds):
+    '''
+        output: numpy ()
+    '''
+
+
 
 def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
@@ -280,6 +286,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
                 preds[0]).detach().cpu().numpy() * 100, 1, 100)
         elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             preds = np.clip(preds[0].detach().cpu().numpy(), 1, 100)
+        print(preds.shape)
+        # preds = get_preds(cfg, preds)
 
         labels = labels.detach().cpu().numpy()
 
