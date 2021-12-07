@@ -128,42 +128,47 @@ def get_transforms(cfg, phase):
 
 
 class pf_model(nn.Module):
-    def __init__(self, cfg, pretrained=True):
+    def __init__(self, cfg, out_dim=10, pretrained=True):
         super().__init__()
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
         if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             self.n_features = self.model.head.in_features
-            self.model.head = nn.Identity()
+            self.model.head = nn.Linear(self.n_features, out_dim)
         elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
-            self.model.classifier = nn.Identity()
+            self.model.head = nn.Linear(self.n_features, out_dim)
 
-        self.class_100_branch = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 100)
-        )
+        # self.class_branch = nn.Sequential(
+        #     nn.Linear(self.n_features, 256),
+        #     nn.ReLU(inplace=True),
+        #     nn.Dropout(p=0.5, inplace=False),
+        #     nn.Linear(256, 10)
+        # )
 
     def forward(self, input, dense):
         features = self.model(input)
-        class_100 = self.class_100_branch(features)
-        return class_100
+        cls = self.class_branch(features)
+        return cls
 
 
 class GradeLabelBCEWithLogits(nn.Module):
     def __init__(self, class_num: int):
         super().__init__()
         self.class_num = class_num
+        self.interval = 100 // self.class_num
 
     def forward(self, preds, target):
-        interval = 100 // self.class_num
-        label = [(target >= i).to(torch.float16)
-                 for i in range(interval, 100+interval, interval)]
+        bs = target.shape[0]
+        dif = torch.Tensor(
+            [[i] for i in range(0, 100, self.interval)]).repeat(1, bs)
+        target = target.repeat(self.class_num, 1)
+        labels = torch.clamp(
+            (target.repeat(self.class_num, 1) - dif.repeat(1, bs)) / self.interval, 0., 1.)
         bcewithlogits = F.binary_cross_entropy_with_logits
-        return sum([bcewithlogits(preds[:, i], label[i]) for i in range(self.class_num)]) / self.class_num
+        return bcewithlogits(preds, labels)
+
 
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
@@ -434,7 +439,7 @@ def main(cfg: DictConfig):
 
         device = torch.device(cfg.device)
 
-        model = pf_model(cfg, pretrained=True).to(device)
+        model = pf_model(cfg, out_dim=10, pretrained=True).to(device)
 
         scaler = GradScaler()
 
@@ -460,7 +465,7 @@ def main(cfg: DictConfig):
         #     loss_fn = RMSELoss()
         # elif cfg.loss == 'FOCALLoss':
         #     loss_fn = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits(class_num=100)
+        loss_fn = GradeLabelBCEWithLogits(class_num=10)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
