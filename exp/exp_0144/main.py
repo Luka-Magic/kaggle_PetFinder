@@ -171,7 +171,7 @@ class pf_model(nn.Module):
         x10 = self.branch10(features)
         x20 = self.branch20(features)
         x100 = self.branch100(features)
-        return x1, x10, x20, x100
+        return [x1, x10, x20, x100]
 
 
 # class GradeLabelBCEWithLogits(nn.Module):
@@ -202,15 +202,14 @@ class GradeLabelBCEWithLogits(nn.Module):
     def forward(self, preds, target):
         bs = target.shape[0]
         losses = []
-        print(target[0])
         for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
             if cls == 1:
                 target_reg = target.float().view(-1, 1)
                 if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
                     target_reg /= 100
+                print(target_reg)
                 losses.append(self.reg_criterion(
                     preds[cls_i], target_reg) * weight)
-                continue
             else:
                 interval = 100 // cls
                 dif = torch.Tensor(
