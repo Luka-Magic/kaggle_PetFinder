@@ -140,17 +140,38 @@ class pf_model(nn.Module):
             self.n_features = self.model.classifier.in_features
             self.model.head = nn.Identity()
 
-        self.branch = [nn.Sequential(
+        
+        self.branch1 = nn.Sequential(
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, cls)
-        ) for cls in cfg.cls]
-
+            nn.Linear(256, 1)
+        )
+        self.branch10 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 1)
+        )
+        self.branch20 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 1)
+        )
+        self.branch100 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 1)
+        )
     def forward(self, input, dense):
         features = self.model(input)
-        x = [branch(features) for branch in self.branch]
-        return x
+        x1 = self.branch1(features)
+        x10 = self.branch10(features)
+        x20 = self.branch20(features)
+        x100 = self.branch100(features)
+        return x1, x10, x20, x100
 
 
 # class GradeLabelBCEWithLogits(nn.Module):
