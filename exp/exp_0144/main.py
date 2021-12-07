@@ -207,7 +207,6 @@ class GradeLabelBCEWithLogits(nn.Module):
                 target_reg = target.float().view(-1, 1)
                 if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
                     target_reg /= 100
-                print(target_reg)
                 losses.append(self.reg_criterion(
                     preds[cls_i], target_reg) * weight)
             else:
