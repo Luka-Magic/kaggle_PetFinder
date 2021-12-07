@@ -369,8 +369,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             #         preds[0]).detach().cpu().numpy() * 100, 1, 100)]
             # elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             #     preds_all += [np.clip(preds[0].detach().cpu().numpy(), 1, 100)]
-
-            preds = get_preds(cfg, preds)
+            preds_all += get_preds(cfg, preds)
             labels_all += [labels.detach().cpu().numpy()]
 
             # preds_temp = np.sum(np.concatenate(preds_all), axis=1)
