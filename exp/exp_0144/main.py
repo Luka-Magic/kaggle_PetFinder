@@ -278,10 +278,10 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             preds = np.clip(torch.sigmoid(
                 preds[0]).detach().cpu().numpy() * 100, 1, 100)
-            labels = labels.detach().cpu().numpy() * 100
         elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
             preds = np.clip(preds[0].detach().cpu().numpy(), 1, 100)
-            labels = labels.detach().cpu().numpy()
+        
+        labels = labels.detach().cpu().numpy()
 
         preds_all += [preds]
         labels_all += [labels]
