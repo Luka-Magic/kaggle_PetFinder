@@ -270,7 +270,7 @@ def get_preds(cfg, preds):
             interval = 100 // cls
             outputs += [np.sum((torch.sigmoid(pred).detach().cpu().numpy()
                                 * interval), axis=1)]
-
+    print(outputs)
     return np.mean(np.concatenate(outputs), axis=1)[:, np.newaxis]
 
 
