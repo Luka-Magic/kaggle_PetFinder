@@ -285,7 +285,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
         preds_all += [preds]
         labels_all += [labels]
-
+        print(preds)
         # preds_temp = np.sum(np.concatenate(preds_all), axis=1)
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
