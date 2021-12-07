@@ -202,6 +202,7 @@ class GradeLabelBCEWithLogits(nn.Module):
     def forward(self, preds, target):
         bs = target.shape[0]
         losses = []
+        print(terget_reg[0])
         for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
             if cls == 1:
                 target_reg = target.float().view(-1, 1)
