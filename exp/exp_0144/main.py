@@ -218,6 +218,7 @@ class GradeLabelBCEWithLogits(nn.Module):
                 labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
                 bcewithlogits = F.binary_cross_entropy_with_logits
                 losses.append(bcewithlogits(preds[cls_i], labels) * weight)
+        print(losses)
         return sum(losses)
 
 
@@ -277,8 +278,16 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
         losses.update(loss.item(), cfg.valid_bs)
 
-        preds_all += [torch.sigmoid(preds[0]).detach().cpu().numpy()]
-        labels_all += [labels.detach().cpu().numpy()]
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            preds = np.clip(torch.sigmoid(
+                preds[0]).detach().cpu().numpy() * 100, 1, 100)
+            labels = labels.detach().cpu().numpy() * 100
+        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+            preds = np.clip(preds[0].detach().cpu().numpy(), 1, 100)
+            labels = labels.detach().cpu().numpy()
+
+        preds_all += [preds]
+        labels_all += [labels]
 
         preds_temp = np.sum(np.concatenate(preds_all), axis=1)
         labels_temp = np.concatenate(labels_all)
@@ -335,8 +344,13 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         optimizer.zero_grad()
 
         if cfg.mix_p == 0:
-            preds_all += [torch.sigmoid(preds[0]).detach().cpu().numpy()]
-            labels_all += [labels.detach().cpu().numpy()]
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                preds_all += [np.clip(torch.sigmoid(
+                    preds[0]).detach().cpu().numpy() * 100, 1, 100)]
+                labels_all += [labels.detach().cpu().numpy() * 100]
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+                preds_all += [np.clip(preds[0].detach().cpu().numpy(), 1, 100)]
+                labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.sum(np.concatenate(preds_all), axis=1)
             labels_temp = np.concatenate(labels_all)
