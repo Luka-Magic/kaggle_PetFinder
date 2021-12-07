@@ -135,38 +135,65 @@ class pf_model(nn.Module):
 
         if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
             self.n_features = self.model.head.in_features
-            self.model.head = nn.Linear(self.n_features, out_dim)
+            self.model.head = nn.Identity()
         elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
-            self.model.head = nn.Linear(self.n_features, out_dim)
+            self.model.head = nn.Identity()
 
-        # self.class_branch = nn.Sequential(
-        #     nn.Linear(self.n_features, 256),
-        #     nn.ReLU(inplace=True),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(256, 10)
-        # )
+        self.branch = [nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, cls)
+        ) for cls in cfg.cls]
 
     def forward(self, input, dense):
-        x = self.model(input)
+        features = self.model(input)
+        x = [branch(features) for branch in self.branch]
         return x
 
 
+# class GradeLabelBCEWithLogits(nn.Module):
+#     def __init__(self, class_num: int):
+#         super().__init__()
+#         self.class_num = class_num
+#         self.interval = 100 // self.class_num
+
+#     def forward(self, preds, target):
+#         bs = target.shape[0]
+#         dif = torch.Tensor(
+#             [i for i in range(0, 100, self.interval)]).repeat(bs, 1).to('cuda:0').float()
+#         target = torch.t(target.repeat(self.class_num, 1))
+#         labels = torch.clamp(
+#             (target - dif) / self.interval, 0., 1.)
+#         bcewithlogits = F.binary_cross_entropy_with_logits
+#         return bcewithlogits(preds, labels)
+
+
 class GradeLabelBCEWithLogits(nn.Module):
-    def __init__(self, class_num: int):
+    def __init__(self, cfg, reg_criterion):
         super().__init__()
-        self.class_num = class_num
-        self.interval = 100 // self.class_num
+        self.cls = cfg.cls
+        self.cls_weights = cfg.cls_weights
+        self.reg_criterion = reg_criterion
 
     def forward(self, preds, target):
         bs = target.shape[0]
-        dif = torch.Tensor(
-            [i for i in range(0, 100, self.interval)]).repeat(bs, 1).to('cuda:0').float()
-        target = torch.t(target.repeat(self.class_num, 1))
-        labels = torch.clamp(
-            (target - dif) / self.interval, 0., 1.)
-        bcewithlogits = F.binary_cross_entropy_with_logits
-        return bcewithlogits(preds, labels)
+        losses = []
+        for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
+            if self.cls == 1:
+                losses.append(self.reg_criterion(
+                    preds[cls_i], target) * weight)
+                continue
+            else:
+                interval = 100 // cls
+                dif = torch.Tensor(
+                    [i for i in range(0, 100, interval)]).repeat(bs, 1).to('cuda:0').float()
+                target = torch.t(target.repeat(cls, 1))
+                labels = torch.clamp((target - dif) / interval, 0., 1.)
+                bcewithlogits = F.binary_cross_entropy_with_logits
+                losses.append(bcewithlogits(preds[cls_i], labels) * weight)
+        return np.mean(losses)
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -225,7 +252,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
         losses.update(loss.item(), cfg.valid_bs)
 
-        preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
+        preds_all += [torch.sigmoid(preds[0]).detach().cpu().numpy()]
         labels_all += [labels.detach().cpu().numpy()]
 
         preds_temp = np.sum(np.concatenate(preds_all), axis=1)
@@ -283,7 +310,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         optimizer.zero_grad()
 
         if cfg.mix_p == 0:
-            preds_all += [torch.sigmoid(preds).detach().cpu().numpy()]
+            preds_all += [torch.sigmoid(preds[0]).detach().cpu().numpy()]
             labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.sum(np.concatenate(preds_all), axis=1)
@@ -456,15 +483,15 @@ def main(cfg: DictConfig):
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
-        # if cfg.loss == 'MSELoss':
-        #     loss_fn = nn.MSELoss()
-        # elif cfg.loss == 'BCEWithLogitsLoss':
-        #     loss_fn = nn.BCEWithLogitsLoss()
-        # elif cfg.loss == 'RMSELoss':
-        #     loss_fn = RMSELoss()
-        # elif cfg.loss == 'FOCALLoss':
-        #     loss_fn = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits(class_num=10)
+        if cfg.loss == 'MSELoss':
+            criterion = nn.MSELoss()
+        elif cfg.loss == 'BCEWithLogitsLoss':
+            criterion = nn.BCEWithLogitsLoss()
+        elif cfg.loss == 'RMSELoss':
+            criterion = RMSELoss()
+        elif cfg.loss == 'FOCALLoss':
+            criterion = FOCALLoss(gamma=cfg.gamma)
+        loss_fn = GradeLabelBCEWithLogits(cfg, criterion)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
