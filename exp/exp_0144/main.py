@@ -287,7 +287,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         preds_all += [preds]
         labels_all += [labels]
 
-        preds_temp = np.sum(np.concatenate(preds_all), axis=1)
+        # preds_temp = np.sum(np.concatenate(preds_all), axis=1)
+        preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
 
         score = mean_squared_error(labels_temp, preds_temp) ** 0.5
@@ -350,7 +351,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 preds_all += [np.clip(preds[0].detach().cpu().numpy(), 1, 100)]
                 labels_all += [labels.detach().cpu().numpy()]
 
-            preds_temp = np.sum(np.concatenate(preds_all), axis=1)
+            # preds_temp = np.sum(np.concatenate(preds_all), axis=1)
+            preds_temp = np.concatenate(preds_all)
             labels_temp = np.concatenate(labels_all)
             train_score = mean_squared_error(labels_temp, preds_temp) ** 0.5
 
