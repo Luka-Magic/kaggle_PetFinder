@@ -333,6 +333,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                         f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
     if scheduler:
         scheduler.step()
+    
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
