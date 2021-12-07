@@ -150,19 +150,19 @@ class pf_model(nn.Module):
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
+            nn.Linear(256, 10)
         )
         self.branch20 = nn.Sequential(
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
+            nn.Linear(256, 20)
         )
         self.branch100 = nn.Sequential(
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
+            nn.Linear(256, 100)
         )
 
     def forward(self, input, dense):
