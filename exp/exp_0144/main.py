@@ -140,7 +140,6 @@ class pf_model(nn.Module):
             self.n_features = self.model.classifier.in_features
             self.model.head = nn.Identity()
 
-        
         self.branch1 = nn.Sequential(
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
@@ -165,6 +164,7 @@ class pf_model(nn.Module):
             nn.Dropout(p=0.5, inplace=False),
             nn.Linear(256, 1)
         )
+
     def forward(self, input, dense):
         features = self.model(input)
         x1 = self.branch1(features)
@@ -202,7 +202,7 @@ class GradeLabelBCEWithLogits(nn.Module):
         bs = target.shape[0]
         losses = []
         for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
-            if self.cls == 1:
+            if cls == 1:
                 losses.append(self.reg_criterion(
                     preds[cls_i], target) * weight)
                 continue
