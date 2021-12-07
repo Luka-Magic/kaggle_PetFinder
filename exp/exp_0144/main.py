@@ -161,8 +161,8 @@ class GradeLabelBCEWithLogits(nn.Module):
     def forward(self, preds, target):
         bs = target.shape[0]
         dif = torch.Tensor(
-            [[i] for i in range(0, 100, self.interval)]).repeat(1, bs).to('cuda:0').float()
-        target = target.repeat(self.class_num, 1)
+            [i for i in range(0, 100, self.interval)]).repeat(bs, 1).to('cuda:0').float()
+        target = torch.t(target.repeat(self.class_num, 1))
         labels = torch.clamp(
             (target - dif) / self.interval, 0., 1.)
         print(preds.shape)
