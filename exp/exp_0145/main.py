@@ -463,7 +463,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         with autocast():
             with torch.no_grad():
                 preds = features_model(imgs, dense)
-                preds_result = get_preds(preds)
+                preds_result = get_preds(cfg, preds)
         for i, pred in enumerate(preds):
             preds_list[i].append(pred)
         preds_result_list += [preds_result]
