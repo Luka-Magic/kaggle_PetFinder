@@ -260,6 +260,7 @@ def get_preds(cfg, preds):
     '''
     outputs = []
     for pred, cls in zip(preds, cfg.cls):
+        print(pred.shape)
         if cls == 1:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 outputs += np.clip(torch.sigmoid(
