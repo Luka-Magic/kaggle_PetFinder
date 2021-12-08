@@ -148,33 +148,33 @@ class pf_model(nn.Module):
             nn.Linear(256, 1)
         )
 
-        # self.branch5 = nn.Sequential(
-        #     nn.Linear(self.n_features, 256),
-        #     nn.ReLU(inplace=True),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(256, 5)
-        # )
+        self.branch5 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 5)
+        )
 
-        # self.branch10 = nn.Sequential(
-        #     nn.Linear(self.n_features, 256),
-        #     nn.ReLU(inplace=True),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(256, 10)
-        # )
+        self.branch10 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 10)
+        )
 
-        # self.branch20 = nn.Sequential(
-        #     nn.Linear(self.n_features, 256),
-        #     nn.ReLU(inplace=True),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(256, 20)
-        # )
+        self.branch20 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 20)
+        )
 
-        # self.branch100 = nn.Sequential(
-        #     nn.Linear(self.n_features, 256),
-        #     nn.ReLU(inplace=True),
-        #     nn.Dropout(p=0.5, inplace=False),
-        #     nn.Linear(256, 100)
-        # )
+        self.branch100 = nn.Sequential(
+            nn.Linear(self.n_features, 256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.Linear(256, 100)
+        )
 
     def forward(self, input, dense):
         features = self.model(input)
@@ -182,14 +182,14 @@ class pf_model(nn.Module):
         for cls in self.cls:
             if cls == 1:
                 outputs.append(self.branch1(features))
-            # elif cls == 5:
-            #     outputs.append(self.branch5(features))
-            # elif cls == 10:
-            #     outputs.append(self.branch10(features))
-            # elif cls == 20:
-            #     outputs.append(self.branch20(features))
-            # elif cls == 100:
-            #     outputs.append(self.branch100(features))
+            elif cls == 5:
+                outputs.append(self.branch5(features))
+            elif cls == 10:
+                outputs.append(self.branch10(features))
+            elif cls == 20:
+                outputs.append(self.branch20(features))
+            elif cls == 100:
+                outputs.append(self.branch100(features))
         return outputs
 
 
