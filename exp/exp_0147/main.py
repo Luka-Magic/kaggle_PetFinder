@@ -476,10 +476,10 @@ def main(cfg: DictConfig):
 
         if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
+                optim, total_steps=cfg.epoch * len(train_loader), max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
         elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
+                optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
         if cfg.loss == 'MSELoss':
             loss_fn = nn.MSELoss()
