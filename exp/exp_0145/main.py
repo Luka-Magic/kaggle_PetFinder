@@ -411,7 +411,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
-    
+
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
@@ -501,9 +501,8 @@ def main(cfg: DictConfig):
         if fold not in cfg.use_fold:
             continue
 
-        if cfg.save:
-            model_name = os.path.join(
-                save_path, f"{cfg.model_arch}_fold_{fold}.pth")
+        model_name = os.path.join(
+            save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
         if len(cfg.use_fold) == 1:
             wandb.init(project=cfg.wandb_project, entity='luka-magic',
