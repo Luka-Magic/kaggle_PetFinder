@@ -485,9 +485,10 @@ def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
+    save_path = os.path.join(
+        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+
     if cfg.save:
-        save_path = os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
         if not os.path.exists(save_path):
             os.mkdir(save_path)
 
