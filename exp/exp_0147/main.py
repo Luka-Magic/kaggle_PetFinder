@@ -24,6 +24,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import nn
+from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.cuda.amp import autocast, GradScaler
 import wandb
@@ -208,8 +209,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
         with autocast():
             preds, _ = model(imgs, dense)
-
-        loss = loss_fn(preds, labels)
+            loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
@@ -234,9 +234,9 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
     preds_epoch = np.concatenate(preds_all)
     labels_epoch = np.concatenate(labels_all)
 
-    score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
+    score_epoch = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
 
-    return score, losses.avg
+    return score_epoch, losses.avg
 
 
 def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, valid_loader, device, scheduler, scaler, best_score, model_name):
@@ -246,6 +246,14 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     lr = get_lr(optimizer)
 
     model.train()
+
+    if epoch == 0:
+        for name, param in model.named_parameters():
+            if re.search('model', name):
+                param.requires_grad = False
+    else:
+        for name, param in model.named_parameters():
+            param.requires_grad = True
 
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
@@ -280,6 +288,9 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         scaler.update()
         optimizer.zero_grad()
 
+        if scheduler:
+            scheduler.step()
+
         if cfg.mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_all += [np.clip(torch.sigmoid(
@@ -306,15 +317,21 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                                                            valid_loader, device)
             model.train()
 
-            wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                      'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+            if (step + 1) % cfg.save_step == 0:
+                if cfg.mix_p == 0:
+                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                               'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+                else:
+                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                               'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
 
             if (step + 1) == len(train_loader):
-                with torch.no_grad():
-                    valid_score, valid_losses = valid_function(cfg, epoch, model, loss_fn,
-                                                               valid_loader, device)
-                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                          'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                if cfg.mix_p == 0:
+                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                else:
+                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
+                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
                 if best_score['score'] > valid_score:
@@ -328,14 +345,15 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
-    if scheduler:
-        scheduler.step()
 
-    preds_epoch = np.concatenate(preds_all)
-    labels_epoch = np.concatenate(labels_all)
+    if cfg.mix_p == 0:
+        preds_epoch = np.concatenate(preds_all)
+        labels_epoch = np.concatenate(labels_all)
 
-    train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
-    print(f'TRAIN: {train_score}, VALID: {valid_score}')
+        train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
+        print(f'TRAIN: {train_score}, VALID: {valid_score}')
+    else:
+        print(f'VALID: {valid_score}')
 
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
@@ -405,9 +423,10 @@ def main(cfg: DictConfig):
     wandb.login()
     seed_everything(cfg.seed)
 
+    save_path = os.path.join(
+        '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
+
     if cfg.save:
-        save_path = os.path.join(
-            '/'.join(os.getcwd().split('/')[:-6]), f"outputs/{os.getcwd().split('/')[-4]}")
         if not os.path.exists(save_path):
             os.mkdir(save_path)
 
@@ -421,9 +440,8 @@ def main(cfg: DictConfig):
         if fold not in cfg.use_fold:
             continue
 
-        if cfg.save:
-            model_name = os.path.join(
-                save_path, f"{cfg.model_arch}_fold_{fold}.pth")
+        model_name = os.path.join(
+            save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
         if len(cfg.use_fold) == 1:
             wandb.init(project=cfg.wandb_project, entity='luka-magic',
@@ -476,14 +494,10 @@ def main(cfg: DictConfig):
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
-            if cfg.mix_p == 0:
-                train_valid_one_epoch(
-                    cfg, epoch, model, loss_fn, optim, train_loader, valid_loader, device, scheduler, scaler, best_score, model_name)
-            else:
-                train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                      valid_loader, device, scheduler, scaler, best_score, model_name)
+            train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
+                                  valid_loader, device, scheduler, scaler, best_score, model_name)
 
-        del model
+        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, loss_fn, scaler
         gc.collect()
         torch.cuda.empty_cache()
 
