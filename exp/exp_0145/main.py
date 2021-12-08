@@ -560,7 +560,7 @@ def main(cfg: DictConfig):
             train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
                                   valid_loader, device, scheduler, scaler, best_score, model_name)
 
-        del model, train_fold_df, valid_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
+        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
         gc.collect()
         torch.cuda.empty_cache()
 
