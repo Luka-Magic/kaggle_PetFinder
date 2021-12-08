@@ -544,14 +544,14 @@ def main(cfg: DictConfig):
                 optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
         if cfg.loss == 'MSELoss':
-            criterion = nn.MSELoss()
+            reg_criterion = nn.MSELoss()
         elif cfg.loss == 'BCEWithLogitsLoss':
-            criterion = nn.BCEWithLogitsLoss()
+            reg_criterion = nn.BCEWithLogitsLoss()
         elif cfg.loss == 'RMSELoss':
-            criterion = RMSELoss()
+            reg_criterion = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
-            criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits(cfg, criterion)
+            reg_criterion = FOCALLoss(gamma=cfg.gamma)
+        loss_fn = GradeLabelBCEWithLogits(cfg, reg_criterion)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
@@ -560,7 +560,7 @@ def main(cfg: DictConfig):
             train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
                                   valid_loader, device, scheduler, scaler, best_score, model_name)
 
-        del model
+        del model, train_fold_df, valid_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
         gc.collect()
         torch.cuda.empty_cache()
 
