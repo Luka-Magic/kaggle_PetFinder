@@ -128,7 +128,7 @@ def get_transforms(cfg, phase):
 
 
 class pf_model(nn.Module):
-    def __init__(self, cfg, out_dim=10, pretrained=True):
+    def __init__(self, cfg, pretrained=True):
         super().__init__()
         self.cls = cfg.cls
         self.model = timm.create_model(
@@ -148,26 +148,26 @@ class pf_model(nn.Module):
             nn.Linear(256, 1)
         )
 
-        self.branch5 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 5)
-        )
+        # self.branch5 = nn.Sequential(
+        #     nn.Linear(self.n_features, 256),
+        #     nn.ReLU(inplace=True),
+        #     nn.Dropout(p=0.5, inplace=False),
+        #     nn.Linear(256, 5)
+        # )
 
-        self.branch10 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 10)
-        )
+        # self.branch10 = nn.Sequential(
+        #     nn.Linear(self.n_features, 256),
+        #     nn.ReLU(inplace=True),
+        #     nn.Dropout(p=0.5, inplace=False),
+        #     nn.Linear(256, 10)
+        # )
 
-        self.branch20 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 20)
-        )
+        # self.branch20 = nn.Sequential(
+        #     nn.Linear(self.n_features, 256),
+        #     nn.ReLU(inplace=True),
+        #     nn.Dropout(p=0.5, inplace=False),
+        #     nn.Linear(256, 20)
+        # )
 
         self.branch100 = nn.Sequential(
             nn.Linear(self.n_features, 256),
@@ -182,12 +182,12 @@ class pf_model(nn.Module):
         for cls in self.cls:
             if cls == 1:
                 outputs.append(self.branch1(features))
-            elif cls == 5:
-                outputs.append(self.branch5(features))
-            elif cls == 10:
-                outputs.append(self.branch10(features))
-            elif cls == 20:
-                outputs.append(self.branch20(features))
+            # elif cls == 5:
+            #     outputs.append(self.branch5(features))
+            # elif cls == 10:
+            #     outputs.append(self.branch10(features))
+            # elif cls == 20:
+            #     outputs.append(self.branch20(features))
             elif cls == 100:
                 outputs.append(self.branch100(features))
         return outputs
@@ -373,7 +373,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
             description = f'epoch: {epoch}, loss: {loss:.4f}, score: {train_score:.4f}'
             pbar.set_description(description)
-
         else:
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
@@ -412,10 +411,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
-
+    
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
+
         train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
         print(f'TRAIN: {train_score}, VALID: {valid_score}')
     else:
@@ -525,7 +525,7 @@ def main(cfg: DictConfig):
 
         device = torch.device(cfg.device)
 
-        model = pf_model(cfg, out_dim=10, pretrained=True).to(device)
+        model = pf_model(cfg, pretrained=True).to(device)
 
         scaler = GradScaler()
 
