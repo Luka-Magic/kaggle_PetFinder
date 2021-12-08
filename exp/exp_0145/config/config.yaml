@@ -12,7 +12,7 @@ cls: [1, 10, 20, 100]
 cls_weights: [1, 1, 1, 1]
 save: True
 save_step: 75
-result_output: True
+result_output: False
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
