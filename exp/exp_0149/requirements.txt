@@ -1,0 +1,5 @@
+timm
+torch
+hydra-core
+wandb
+albumentations
