@@ -407,10 +407,10 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     best_score['epoch'] = epoch
                     best_score['step'] = step
                     print(
-                        f"Best score update! valid rmse: {best_score['score']}, epoch: {best_score['epoch']}, step: {best_score['step']}")
+                        f"valid rmse: {best_score['score']:.5f}, epoch: {best_score['epoch']}, step: {best_score['step']} => BEST SCORE!!!")
                 else:
                     print(
-                        f"No update. valid rmse: {valid_score}, epoch: {epoch}, step: {step}")
+                        f"valid rmse: {valid_score:.5f}, epoch: {epoch}, step: {step}")
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
@@ -559,6 +559,11 @@ def main(cfg: DictConfig):
             # Train Start
             train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
                                   valid_loader, device, scheduler, scaler, best_score, model_name)
+
+        print('=' * 40)
+        print(
+            f"Fold{fold}, best_score{best_score['score']:.5f}, epoch{best_score['epoch']}, step{best_score['step']}")
+        print('=' * 40)
 
         del model, train_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
         gc.collect()
