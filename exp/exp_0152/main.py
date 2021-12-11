@@ -361,8 +361,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     #         if re.search('model', name):
     #             param.requires_grad = False
     # else:
-    #     for name, param in model.named_parameters():
-    #         param.requires_grad = True
+    for name, param in model.named_parameters():
+        param.requires_grad = True
 
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
