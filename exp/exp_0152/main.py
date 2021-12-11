@@ -216,7 +216,7 @@ class KLLoss(nn.Module):
         bs = target.shape[0]
         interval = 100 // cls
         label = torch.arange(interval, 100+interval,
-                             interval).repeat(bs, 1).int()
+                             interval).repeat(bs, 1).int().to('cuda:0')
         pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
             (np.sqrt(2*np.pi)*sigma)
         pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
