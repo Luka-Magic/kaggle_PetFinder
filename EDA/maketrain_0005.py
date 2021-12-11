@@ -68,7 +68,7 @@ def hash_grouping(df, threshold):
 def distribution_label(df):
     def f(x):
         for i in range(10):
-            if (i+1)*10 > x > i * 10:
+            if (i+1)*10 >= x > i * 10:
                 return i
     df['y'] = df.Pawpularity.apply(f)
     return df
