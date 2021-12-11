@@ -235,7 +235,8 @@ class RegLoss(nn.Module):
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
             if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                target, pred /= 100
+                target /= 100
+                pred /= 100
             losses.append(self.reg_criterion(
                 pred, target))
             return sum(losses) / len(losses)
