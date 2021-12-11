@@ -227,12 +227,15 @@ class RegLoss(nn.Module):
     def __init__(self, cfg, reg_criterion):
         super().__init__()
         self.cls = cfg.cls
+        self.loss = cfg.loss
         self.reg_criterion = reg_criterion
 
     def forward(self, input, target):
         losses = []
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
+            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+                target, pred /= 100
             losses.append(self.reg_criterion(
                 pred, target))
             return sum(losses) / len(losses)
@@ -240,7 +243,6 @@ class RegLoss(nn.Module):
     def calc_pred(self, cls, pred):
         interval = 100 // cls
         softmax = nn.Softmax(dim=1)
-        print(softmax(pred))
         x = torch.arange(interval, 100+interval, interval).to('cuda:0')
         return torch.sum(x * softmax(pred), axis=1, keepdim=True)
 
