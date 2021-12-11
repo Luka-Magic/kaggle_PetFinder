@@ -266,7 +266,6 @@ class DLDLv2Loss(nn.Module):
         loss = kl_loss + self.lambda_ * reg_loss
         return loss
 
-
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
                           transforms=get_transforms(cfg, 'train'))
