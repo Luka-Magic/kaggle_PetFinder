@@ -236,7 +236,7 @@ class RegLoss(nn.Module):
             pred = self.calc_pred(cls, pred)
             losses.append(self.reg_criterion(
                 pred, target))
-            return sum(losses) / len(losses)
+        return sum(losses) / len(losses)
 
     def calc_pred(self, cls, pred):
         interval = 100 // cls
