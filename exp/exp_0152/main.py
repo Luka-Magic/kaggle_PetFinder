@@ -233,6 +233,7 @@ class RegLoss(nn.Module):
         losses = []
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
+            print(pred)
             losses.append(self.reg_criterion(
                 pred, target))
             return sum(losses) / len(losses)
@@ -257,7 +258,7 @@ class DLDLv2Loss(nn.Module):
 
         kl_loss = kl_loss_fn(input, target)
         reg_loss = reg_loss_fn(input, target)
-        print(kl_loss, reg_loss)
+        # print(kl_loss, reg_loss)
         loss = kl_loss + self.lambda_ * reg_loss
         return loss
 
