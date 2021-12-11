@@ -262,9 +262,9 @@ class DLDLv2Loss(nn.Module):
 
         kl_loss = kl_loss_fn(input, target)
         reg_loss = reg_loss_fn(input, target)
-        print(kl_loss, reg_loss)
         loss = kl_loss + self.lambda_ * reg_loss
         return loss
+
 
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
@@ -425,10 +425,10 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
             if (step + 1) % cfg.save_step == 0:
                 wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                            'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
+                           'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
             if (step + 1) == len(train_loader):
                 wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                           'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
                 if best_score['score'] > valid_score:
@@ -437,11 +437,12 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     best_score['score'] = valid_score
                     best_score['epoch'] = epoch
                     best_score['step'] = step
-                    print(f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step} => BEST SCORE {valid_score:.5f} !!!")
+                    print(
+                        f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step} => BEST SCORE {valid_score:.5f} !!!")
 
                 else:
-                    print(f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
-
+                    print(
+                        f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
@@ -451,6 +452,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         print(f'TRAIN: {train_score:.5f}, VALID: {valid_score:.5f}')
     else:
         print(f'VALID: {valid_score:.5f}')
+
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
     if 'basic' in cfg.dense_columns or 'all' in cfg.dense_columns:
