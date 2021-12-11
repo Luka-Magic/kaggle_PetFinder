@@ -65,13 +65,13 @@ def hash_grouping(df, threshold):
 #     df_keep = df[gap <= threshold].reset_index(drop=True)
 #     return df_keep, df_removed
 
-# def distribution_label(df):
-#     def f(x):
-#         for i in range(10):
-#             if (i+1)*10 > x > i * 10:
-#                 return i
-#     y = df.Pawpularity.apply(f)
-#     return y
+def distribution_label(df):
+    def f(x):
+        for i in range(10):
+            if (i+1)*10 > x > i * 10:
+                return i
+    y = df.Pawpularity.apply(f)
+    return y
 
 
 def preprocess(data_path, phase):
@@ -81,13 +81,13 @@ def preprocess(data_path, phase):
     '''
     df = pd.read_csv(os.path.join(data_path, f'{phase}.csv'))
 
-    df['file_path'] = df['Id'].apply(
-        lambda x: f'/content/drive/MyDrive/kaggle_PetFinder/data/train/{x}.jpg')
+    # df['file_path'] = df['Id'].apply(
+    #     lambda x: f'/content/drive/MyDrive/kaggle_PetFinder/data/train/{x}.jpg')
 
-    hash_threshold = 0.9
-    print(f'hash threshold = {hash_threshold}')
-    df = hash_grouping(df, threshold=hash_threshold)
-    print(f"duplicate: {df['index_in_group'].sum()}")
+    # hash_threshold = 0.9
+    # print(f'hash threshold = {hash_threshold}')
+    # df = hash_grouping(df, threshold=hash_threshold)
+    # print(f"duplicate: {df['index_in_group'].sum()}")
 
     # remove_threshold = 25
     # print(f'remove threshold = {remove_threshold}')
@@ -95,8 +95,8 @@ def preprocess(data_path, phase):
     #     hash_group_df, threshold=remove_threshold)
     # print(f'keep: {df_keep.shape[0]}, remove: {df_remove.shape[0]}')
 
-    # y = distribution_label(df)
-    # df.y = y
+    y = distribution_label(df)
+    df.y = y
 
     # drop_columns = [column for column in df.columns if re.search(
     #     'feature*', column) or column == 'preds']
@@ -109,7 +109,7 @@ def load_to_csv(num):
     # この関数はここでしか使わない
     data_path = '/content/drive/MyDrive/kaggle_PetFinder/data'
     processed_df = preprocess(
-        data_path, 'train')
+        data_path, 'train_4')
     processed_df.to_csv(os.path.join(data_path, f'train_{num}.csv'))
 
 
