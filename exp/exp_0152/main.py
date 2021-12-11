@@ -193,36 +193,61 @@ class pf_model(nn.Module):
         return outputs
 
 
-class GradeLabelBCEWithLogits(nn.Module):
-    def __init__(self, cfg, reg_criterion):
+class KLLoss(nn.Module):
+    def __init__(self, cfg):
         super().__init__()
         self.cls = cfg.cls
-        self.loss = cfg.loss
-        self.cls_weights = cfg.cls_weights
+        self.sigma = cfg.sigma
+
+    def forward(self, input, target):
+        losses = []
+        for cls, pred, sigma in zip(self.cls, input):
+            p = torch.log(F.Softmax(pred, dim=1))
+            q = torch.clamp(self.normal_sampling(
+                target, cls, self.sigma), 1e-10)
+            criterion = nn.KLDivLoss()
+            loss = criterion(p, q)
+            losses.append(loss)
+        return np.mean(losses)
+
+    def normal_sampling(self, target, cls, sigma):
+        bs = target.shape[0]
+        interval = 100 // cls
+        label = torch.Tensor(
+            np.arange(interval, 100+interval, interval)).repeat(bs, 1).int()
+        pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
+            (np.sqrt(2*np.pi)*sigma)
+        pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
+        return pdf
+
+
+class RegLoss(nn.Module):
+    def __init__(self, cfg, reg_criterion):
+        self.cls = cfg.cls
         self.reg_criterion = reg_criterion
 
-    def forward(self, preds, target):
-        bs = target.shape[0]
+    def forward(self, input, target):
         losses = []
-        for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
+        for cls, pred in zip(self.cls, input):
+            losses.append(self.reg_criterion(
+                pred.sum(dim=1, keepdim=1), target))
+            return np.mean(losses)
 
-            # Regression Loss
-            target_reg = target.float().view(-1, 1)
-            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                target_reg /= 100
-                pred_reg = torch.sum(
-                    preds[cls_i], dim=1, keepdim=True) / cls
-            losses.append(self.reg_criterion(pred_reg, target_reg) * weight)
+    def calc_pred(self, cls, pred):
+        pass
 
-            # Grade Label Loss
-            interval = 100 // cls
-            dif = torch.Tensor(
-                [i for i in range(0, 100, interval)]).repeat(bs, 1).to('cuda:0').float()
-            target_rep = torch.t(target.repeat(cls, 1))
-            labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
-            bcewithlogits = F.binary_cross_entropy_with_logits
-            losses.append(bcewithlogits(preds[cls_i], labels) * weight)
-        return sum(losses)
+class DLDLv2Loss(nn.Module):
+    def __init__(self, cfg, reg_criterion):
+        super().__init__()
+        self.lambda_ = cfg.lambda_
+        self.cfg = cfg
+        self.reg_criterion = reg_criterion
+
+    def forward(self, input, target):
+        kl_loss = KLLoss(self.cfg)
+        reg_loss = RegLoss(self.cfg, self.reg_criterion)
+        loss = kl_loss(input, target) + self.lambda_ * reg_loss(input, target)
+        return loss
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -271,8 +296,8 @@ def get_preds(cfg, preds):
         else:
             interval = 100 // cls
             outputs += [np.sum((torch.sigmoid(pred).detach().cpu().numpy()
-                                * interval), axis=1, keepdims=True)]
-    return np.mean(np.concatenate(outputs, axis=1), axis=1, keepdims=True)
+                                * interval), axis=1)[:, np.newaxis]]
+    return np.mean(np.concatenate(outputs, axis=1), axis=1)[:, np.newaxis]
 
 
 def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
@@ -554,7 +579,7 @@ def main(cfg: DictConfig):
             reg_criterion = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
             reg_criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = GradeLabelBCEWithLogits(cfg, reg_criterion)
+        loss_fn = DLDLv2Loss(cfg, reg_criterion)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
