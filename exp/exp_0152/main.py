@@ -262,7 +262,7 @@ class DLDLv2Loss(nn.Module):
 
         kl_loss = kl_loss_fn(input, target)
         reg_loss = reg_loss_fn(input, target)
-        # print(kl_loss, reg_loss)
+        print(kl_loss, reg_loss)
         loss = kl_loss + self.lambda_ * reg_loss
         return loss
 
