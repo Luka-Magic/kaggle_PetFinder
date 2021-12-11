@@ -239,7 +239,7 @@ class RegLoss(nn.Module):
 
     def calc_pred(self, cls, pred):
         interval = 100 // cls
-        x = torch.arange(interval, 100+interval, interval)
+        x = torch.arange(interval, 100+interval, interval).to('cuda:0')
         return torch.sum(x * pred, axis=1, keepdim=True)
 
 
