@@ -239,8 +239,9 @@ class RegLoss(nn.Module):
 
     def calc_pred(self, cls, pred):
         interval = 100 // cls
+        softmax = nn.Softmax(dim=1)
         x = torch.arange(interval, 100+interval, interval).to('cuda:0')
-        return torch.sum(x * pred, axis=1, keepdim=True)
+        return torch.sum(x * softmax(pred), axis=1, keepdim=True)
 
 
 class DLDLv2Loss(nn.Module):
@@ -294,16 +295,11 @@ def prepare_dataloader(cfg, train_df, valid_df):
 def get_preds(cfg, preds):
     outputs = []
     for pred, cls in zip(preds, cfg.cls):
-        if cls == 1:
-            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
-                outputs += [np.clip(torch.sigmoid(
-                    pred).detach().cpu().numpy() * 100, 1, 100)]
-            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
-                outputs += [np.clip(pred.detach().cpu().numpy(), 1, 100)]
-        else:
-            interval = 100 // cls
-            outputs += [np.sum((torch.sigmoid(pred).detach().cpu().numpy()
-                                * interval), axis=1)[:, np.newaxis]]
+        interval = 100 // cls
+        softmax = nn.Softmax(dim=1)
+        x = torch.arange(interval, 100+interval, interval).to('cuda:0')
+        outputs += [torch.sum(x * softmax(pred), axis=1,
+                              keepdim=True).detach().cpu().numpy()]
     return np.mean(np.concatenate(outputs, axis=1), axis=1)[:, np.newaxis]
 
 
@@ -356,13 +352,13 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     model.train()
 
-    if epoch == 0:
-        for name, param in model.named_parameters():
-            if re.search('model', name):
-                param.requires_grad = False
-    else:
-        for name, param in model.named_parameters():
-            param.requires_grad = True
+    # if epoch == 0:
+    #     for name, param in model.named_parameters():
+    #         if re.search('model', name):
+    #             param.requires_grad = False
+    # else:
+    #     for name, param in model.named_parameters():
+    #         param.requires_grad = True
 
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
