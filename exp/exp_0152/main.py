@@ -209,7 +209,7 @@ class KLLoss(nn.Module):
             criterion = nn.KLDivLoss()
             loss = criterion(p, q)
             losses.append(loss)
-        return sum(losses)
+        return sum(losses) / len(losses)
 
     def normal_sampling(self, target, cls, sigma):
         target = target.view(-1, 1)
@@ -232,10 +232,10 @@ class RegLoss(nn.Module):
     def forward(self, input, target):
         losses = []
         for cls, pred in zip(self.cls, input):
-            pred = self.cals_pred(cls, pred)
+            pred = self.calc_pred(cls, pred)
             losses.append(self.reg_criterion(
                 pred, target))
-            return sum(losses)
+            return sum(losses) / len(losses)
 
     def calc_pred(self, cls, pred):
         interval = 100 // cls
