@@ -438,11 +438,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     best_score['epoch'] = epoch
                     best_score['step'] = step
                     print(
-                        f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step} => BEST SCORE {valid_score:.5f} !!!")
+                        f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step} => BEST SCORE {valid_score:.5f} !!!")
 
                 else:
                     print(
-                        f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
+                        f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
