@@ -235,7 +235,6 @@ class RegLoss(nn.Module):
         target_reg = target.float().view(-1, 1)
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
-
             if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
                 target_reg /= 100
                 pred /= 100
