@@ -252,9 +252,12 @@ class DLDLv2Loss(nn.Module):
         self.reg_criterion = reg_criterion
 
     def forward(self, input, target):
-        kl_loss = KLLoss(self.cfg)
-        reg_loss = RegLoss(self.cfg, self.reg_criterion)
-        loss = kl_loss(input, target) + self.lambda_ * reg_loss(input, target)
+        kl_loss_fn = KLLoss(self.cfg)
+        reg_loss_fn = RegLoss(self.cfg, self.reg_criterion)
+
+        kl_loss = kl_loss_fn(input, target)
+        reg_loss = reg_loss_fn(input, target)
+        loss = kl_loss + self.lambda_ * reg_loss
         return loss
 
 
