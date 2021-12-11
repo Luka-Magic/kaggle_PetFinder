@@ -413,6 +413,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             description = f'epoch: {epoch}, loss: {loss:.4f}, score: {train_score:.4f}'
             pbar.set_description(description)
         else:
+            train_score = 'mixup'
             description = f'epoch: {epoch}, mixup'
             pbar.set_description(description)
 
@@ -423,20 +424,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             model.train()
 
             if (step + 1) % cfg.save_step == 0:
-                if cfg.mix_p == 0:
-                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                               'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
-                else:
-                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
-                               'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
-
+                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'step_sum': epoch*len(train_loader) + step})
             if (step + 1) == len(train_loader):
-                if cfg.mix_p == 0:
-                    wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
-                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
-                else:
-                    wandb.log({'valid_rmse': valid_score, 'train_loss': losses.avg,
-                               'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
+                wandb.log({'train_rmse': train_score, 'valid_rmse': valid_score, 'train_loss': losses.avg,
+                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
                 if best_score['score'] > valid_score:
@@ -445,21 +437,20 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     best_score['score'] = valid_score
                     best_score['epoch'] = epoch
                     best_score['step'] = step
-                    print(
-                        f"valid rmse: {best_score['score']:.5f}, epoch: {best_score['epoch']}, step: {best_score['step']} => BEST SCORE!!!")
+                    print(f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step} => BEST SCORE {valid_score:.5f} !!!")
+
                 else:
-                    print(
-                        f"valid rmse: {valid_score:.5f}, epoch: {epoch}, step: {step}")
+                    print(f"train: {train_score}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
+
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
         labels_epoch = np.concatenate(labels_all)
 
         train_score = mean_squared_error(labels_epoch, preds_epoch) ** 0.5
-        print(f'TRAIN: {train_score}, VALID: {valid_score}')
+        print(f'TRAIN: {train_score:.5f}, VALID: {valid_score:.5f}')
     else:
-        print(f'VALID: {valid_score}')
-
+        print(f'VALID: {valid_score:.5f}')
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
     if 'basic' in cfg.dense_columns or 'all' in cfg.dense_columns:
