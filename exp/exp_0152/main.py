@@ -202,7 +202,8 @@ class KLLoss(nn.Module):
     def forward(self, input, target):
         losses = []
         for cls, pred in zip(self.cls, input):
-            p = torch.log(nn.Softmax(pred, dim=1))
+            softmax = nn.Softmax(dim=1)
+            p = torch.log(softmax(pred))
             q = torch.clamp(self.normal_sampling(
                 target, cls, self.sigma), 1e-10)
             criterion = nn.KLDivLoss()
