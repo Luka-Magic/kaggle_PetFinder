@@ -233,7 +233,6 @@ class RegLoss(nn.Module):
         losses = []
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
-            print(pred)
             losses.append(self.reg_criterion(
                 pred, target))
             return sum(losses) / len(losses)
@@ -241,6 +240,7 @@ class RegLoss(nn.Module):
     def calc_pred(self, cls, pred):
         interval = 100 // cls
         softmax = nn.Softmax(dim=1)
+        print(softmax(pred))
         x = torch.arange(interval, 100+interval, interval).to('cuda:0')
         return torch.sum(x * softmax(pred), axis=1, keepdim=True)
 
