@@ -213,7 +213,8 @@ class KLLoss(nn.Module):
     def normal_sampling(self, target, cls, sigma):
         bs = target.shape[0]
         interval = 100 // cls
-        label = torch.arange(interval, 100+interval, interval).repeat(bs, 1).int()
+        label = torch.arange(interval, 100+interval,
+                             interval).repeat(bs, 1).int()
         pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
             (np.sqrt(2*np.pi)*sigma)
         pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
@@ -222,6 +223,7 @@ class KLLoss(nn.Module):
 
 class RegLoss(nn.Module):
     def __init__(self, cfg, reg_criterion):
+        super().__init__()
         self.cls = cfg.cls
         self.reg_criterion = reg_criterion
 
@@ -238,6 +240,7 @@ class RegLoss(nn.Module):
         x = torch.arange(interval, 100+interval, interval)
         return torch.sum(x * pred, axis=1, keepdim=True)
 
+
 class DLDLv2Loss(nn.Module):
     def __init__(self, cfg, reg_criterion):
         super().__init__()
@@ -250,6 +253,7 @@ class DLDLv2Loss(nn.Module):
         reg_loss = RegLoss(self.cfg, self.reg_criterion)
         loss = kl_loss(input, target) + self.lambda_ * reg_loss(input, target)
         return loss
+
 
 def prepare_dataloader(cfg, train_df, valid_df):
     train_ds = pf_dataset(cfg, train_df, 'train',
