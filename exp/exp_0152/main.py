@@ -212,12 +212,11 @@ class KLLoss(nn.Module):
         return np.mean(losses)
 
     def normal_sampling(self, target, cls, sigma):
-        print(target.shape)
+        target = target.view(-1, 1)
         bs = target.shape[0]
         interval = 100 // cls
         label = torch.arange(interval, 100+interval,
                              interval).repeat(bs, 1).int()
-        print(label.shape)
         pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
             (np.sqrt(2*np.pi)*sigma)
         pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
