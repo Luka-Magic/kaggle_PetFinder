@@ -49,9 +49,6 @@ def load_data(cfg):
     elif cfg.fold == 'StratifiedKFold':
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    elif cfg.fold == 'StratifiedGroupKFold':
-        folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-            X=np.arange(train_df.shape[0]), y=train_df.y.values, group=train_df.group.values)
     for fold, (train_index, valid_index) in enumerate(folds):
         train_df.loc[valid_index, 'kfold'] = fold
 
@@ -208,20 +205,19 @@ class GradeLabelBCEWithLogits(nn.Module):
         bs = target.shape[0]
         losses = []
         for cls_i, (cls, weight) in enumerate(zip(self.cls, self.cls_weights)):
-            if cls == 1:
-                target_reg = target.float().view(-1, 1)
-                if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                    target_reg /= 100
-                losses.append(self.reg_criterion(
-                    preds[cls_i], target_reg) * weight)
-            else:
-                interval = 100 // cls
-                dif = torch.Tensor(
-                    [i for i in range(0, 100, interval)]).repeat(bs, 1).to('cuda:0').float()
-                target_rep = torch.t(target.repeat(cls, 1))
-                labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
-                bcewithlogits = F.binary_cross_entropy_with_logits
-                losses.append(bcewithlogits(preds[cls_i], labels) * weight)
+            target_reg = target.float().view(-1, 1)
+            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+                target_reg /= 100
+            losses.append(self.reg_criterion(
+                torch.sum(preds[cls_i], dim=1, keepdim=True), target_reg) * weight)
+
+            interval = 100 // cls
+            dif = torch.Tensor(
+                [i for i in range(0, 100, interval)]).repeat(bs, 1).to('cuda:0').float()
+            target_rep = torch.t(target.repeat(cls, 1))
+            labels = torch.clamp((target_rep - dif) / interval, 0., 1.)
+            bcewithlogits = F.binary_cross_entropy_with_logits
+            losses.append(bcewithlogits(preds[cls_i], labels) * weight)
         return sum(losses)
 
 
