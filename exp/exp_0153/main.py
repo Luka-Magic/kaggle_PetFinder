@@ -332,7 +332,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
             kl_loss, reg_loss = loss_fn(preds, labels)
             loss = kl_loss + cfg.lambda_ * reg_loss
         if step % 10 == 0:
-            print(kl_loss, reg_loss)
+            print(
+                f'KL:{kl_loss.detach().item()} + lambda * REG:{reg_loss.detach().item()} = {loss.detach().item()}')
         losses.update(loss.item(), cfg.valid_bs)
 
         preds_all += [get_preds(cfg, preds)]
