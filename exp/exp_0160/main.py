@@ -333,7 +333,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                         f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
             # early stopping
             if cfg.mix_p == 0 and train_score - valid_score < -2.:
-                return None
+                return 'stop'
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
@@ -343,6 +343,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         print(f'TRAIN: {train_score:.5f}, VALID: {valid_score:.5f}')
     else:
         print(f'VALID: {valid_score:.5f}')
+    return 'finish'
 
 
 def preprocess(cfg, train_fold_df, valid_fold_df):
@@ -479,8 +480,10 @@ def main(cfg: DictConfig):
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
-            train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
+            result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
                                   valid_loader, device, scheduler, scaler, best_score, model_name)
+            if result == 'stop':
+                break
 
         print('=' * 40)
         print(
