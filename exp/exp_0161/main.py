@@ -49,9 +49,6 @@ def load_data(cfg):
     elif cfg.fold == 'StratifiedKFold':
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
-    elif cfg.fold == 'StratifiedGroupKFold':
-        folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
-            X=np.arange(train_df.shape[0]), y=train_df.y.values, groups=train_df.group.values)
     for fold, (train_index, valid_index) in enumerate(folds):
         train_df.loc[valid_index, 'kfold'] = fold
 
@@ -133,140 +130,28 @@ def get_transforms(cfg, phase):
 class pf_model(nn.Module):
     def __init__(self, cfg, pretrained=True):
         super().__init__()
-        self.cls = cfg.cls
         self.model = timm.create_model(
             cfg.model_arch, pretrained=pretrained, in_chans=3)
 
         if re.search(r'vit*', cfg.model_arch) or re.search(r'swin*', cfg.model_arch):
-            self.n_features = self.model.head.in_features
-            self.model.head = nn.Identity()
+            n_features = self.model.head.in_features
+            self.model.head = nn.Linear(n_features, cfg.features_num)
         elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
-            self.model.head = nn.Identity()
-
-        self.branch1 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
-        )
-
-        self.branch5 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 5)
-        )
-
-        self.branch10 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 10)
-        )
-
-        self.branch20 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 20)
-        )
-
-        self.branch100 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 100)
-        )
+            self.model.classifier = nn.Linear(
+                self.n_features, cfg.features_num)
+        self.dropout = nn.Dropout(0.1)
+        self.fc1 = nn.Linear(cfg.features_num +
+                             len_columns(cfg.dense_columns), 64)
+        self.fc2 = nn.Linear(64, 1)
 
     def forward(self, input, dense):
         features = self.model(input)
-        outputs = []
-        for cls in self.cls:
-            if cls == 1:
-                outputs.append(self.branch1(features))
-            elif cls == 5:
-                outputs.append(self.branch5(features))
-            elif cls == 10:
-                outputs.append(self.branch10(features))
-            elif cls == 20:
-                outputs.append(self.branch20(features))
-            elif cls == 100:
-                outputs.append(self.branch100(features))
-        return outputs
-
-
-class KLLoss(nn.Module):
-    def __init__(self, cfg):
-        super().__init__()
-        self.cls = cfg.cls
-        self.sigma = cfg.sigma
-
-    def forward(self, input, target):
-        losses = []
-        for cls, pred in zip(self.cls, input):
-            softmax = nn.Softmax(dim=1)
-            p = torch.log(softmax(pred))
-            q = torch.clamp(self.normal_sampling(
-                target, cls, self.sigma), 1e-10)
-            criterion = nn.KLDivLoss(reduction='batchmean')
-            loss = criterion(p, q)
-            losses.append(loss / (100 // cls))
-        return sum(losses) / len(losses)
-
-    def normal_sampling(self, target, cls, sigma):
-        target = target.view(-1, 1)
-        bs = target.shape[0]
-        interval = 100 // cls
-        label = torch.arange(interval, 100+interval,
-                             interval).repeat(bs, 1).int().to('cuda:0')
-        pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
-            (np.sqrt(2*np.pi)*sigma)
-        pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
-        return pdf
-
-
-class RegLoss(nn.Module):
-    def __init__(self, cfg, reg_criterion):
-        super().__init__()
-        self.cls = cfg.cls
-        self.loss = cfg.loss
-        self.reg_criterion = reg_criterion
-
-    def forward(self, input, target):
-        losses = []
-        target_reg = target.float().view(-1, 1)
-        for cls, pred in zip(self.cls, input):
-            pred = self.calc_pred(cls, pred)
-            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                target_reg /= 100
-                pred /= 100
-            losses.append(self.reg_criterion(
-                pred, target_reg))
-        return sum(losses) / len(losses)
-
-    def calc_pred(self, cls, pred):
-        interval = 100 // cls
-        softmax = nn.Softmax(dim=1)
-        x = torch.arange(interval, 100+interval, interval).to('cuda:0')
-        return torch.sum(x * softmax(pred), axis=1, keepdim=True)
-
-
-class DLDLv2Loss(nn.Module):
-    def __init__(self, cfg, reg_criterion):
-        super().__init__()
-        self.lambda_ = cfg.lambda_
-        self.cfg = cfg
-        self.reg_criterion = reg_criterion
-
-    def forward(self, input, target):
-        kl_loss_fn = KLLoss(self.cfg)
-        reg_loss_fn = RegLoss(self.cfg, self.reg_criterion)
-
-        kl_loss = kl_loss_fn(input, target)
-        reg_loss = reg_loss_fn(input, target)
-        loss = kl_loss + self.lambda_ * reg_loss
-        return loss
+        features = self.dropout(features)
+        x = torch.cat([features, dense], dim=1)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        return x, features
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -303,17 +188,6 @@ def prepare_dataloader(cfg, train_df, valid_df):
     return train_loader, valid_loader, valid_tta_loader
 
 
-def get_preds(cfg, preds):
-    outputs = []
-    for pred, cls in zip(preds, cfg.cls):
-        interval = 100 // cls
-        softmax = nn.Softmax(dim=1)
-        x = torch.arange(interval, 100+interval, interval).to('cuda:0')
-        outputs += [torch.sum(x * softmax(pred), axis=1,
-                              keepdim=True).detach().cpu().numpy()]
-    return np.mean(np.concatenate(outputs, axis=1), axis=1)[:, np.newaxis]
-
-
 def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
     model.eval()
@@ -328,15 +202,26 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
-        labels = labels.to(device).long()
+        labels = labels.to(device).float().view(-1, 1)
+
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            labels /= 100
 
         with autocast():
-            preds = model(imgs, dense)
+            preds, _ = model(imgs, dense)
             loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
-        preds_all += [get_preds(cfg, preds)]
-        labels_all += [labels.detach().cpu().numpy()]
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            preds = np.clip(torch.sigmoid(
+                preds).detach().cpu().numpy() * 100, 1, 100)
+            labels = labels.detach().cpu().numpy() * 100
+        elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+            preds = np.clip(preds.detach().cpu().numpy(), 1, 100)
+            labels = labels.detach().cpu().numpy()
+
+        preds_all += [preds]
+        labels_all += [labels]
 
         preds_temp = np.concatenate(preds_all)
         labels_temp = np.concatenate(labels_all)
@@ -363,14 +248,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     model.train()
 
-    # if epoch == 0:
-    #     for name, param in model.named_parameters():
-    #         if re.search('model', name):
-    #             param.requires_grad = False
-    # else:
-    for name, param in model.named_parameters():
-        param.requires_grad = True
-
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
     preds_all = []
@@ -381,7 +258,10 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
-        labels = labels.to(device).long()
+        labels = labels.to(device).float().view(-1, 1)
+
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            labels /= 100
 
         with autocast():
             mix_p = np.random.rand()
@@ -389,11 +269,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
@@ -405,8 +285,13 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             scheduler.step()
 
         if cfg.mix_p == 0:
-            preds_all += [get_preds(cfg, preds)]
-            labels_all += [labels.detach().cpu().numpy()]
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                preds_all += [np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)]
+                labels_all += [labels.detach().cpu().numpy() * 100]
+            elif cfg.loss == 'MSELoss' or cfg.loss == 'RMSELoss':
+                preds_all += [np.clip(preds.detach().cpu().numpy(), 1, 100)]
+                labels_all += [labels.detach().cpu().numpy()]
 
             preds_temp = np.concatenate(preds_all)
             labels_temp = np.concatenate(labels_all)
@@ -490,28 +375,28 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
-    preds_list = [[] for _ in range(len(cfg.cls))]
-    preds_result_list = []
+    preds_list = np.array([])
     for step, (imgs, dense, _) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
         with autocast():
             with torch.no_grad():
-                preds = features_model(imgs, dense)
-                preds_result = get_preds(cfg, preds)
-        for i, pred in enumerate(preds):
-            preds_list[i].append(torch.sigmoid(pred).detach().cpu().numpy())
-        preds_result_list += [preds_result]
-
-    preds_class_all = np.concatenate(
-        [np.concatenate(preds_list[i]) for i in range(len(cfg.cls))], axis=1)
-    preds_all = np.concatenate(preds_result_list)
-
-    cls_columns = [f'pred_{cls}_{c}' for cls in cfg.cls for c in range(cls)]
-
+                preds, _ = features_model(imgs, dense)
+        if step == 0:
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                preds_list = np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)
+            else:
+                preds_list = preds.detach().cpu().numpy()
+        else:
+            if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+                preds_list = np.concatenate([preds_list, np.clip(torch.sigmoid(
+                    preds).detach().cpu().numpy() * 100, 1, 100)], axis=0)
+            else:
+                preds_list = np.concatenate([preds_list,
+                                             preds.detach().cpu().numpy()], axis=0)
     result_df = pd.concat([result_df, pd.DataFrame(
-        preds_class_all, columns=cls_columns)], axis=1)
-    result_df['preds'] = preds_all
+        preds_list, columns=['preds'])], axis=1)
     return result_df
 
 
@@ -579,14 +464,13 @@ def main(cfg: DictConfig):
                 optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
         if cfg.loss == 'MSELoss':
-            reg_criterion = nn.MSELoss()
+            loss_fn = nn.MSELoss()
         elif cfg.loss == 'BCEWithLogitsLoss':
-            reg_criterion = nn.BCEWithLogitsLoss()
+            loss_fn = nn.BCEWithLogitsLoss()
         elif cfg.loss == 'RMSELoss':
-            reg_criterion = RMSELoss()
+            loss_fn = RMSELoss()
         elif cfg.loss == 'FOCALLoss':
-            reg_criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = DLDLv2Loss(cfg, reg_criterion)
+            loss_fn = FOCALLoss(gamma=cfg.gamma)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
@@ -600,7 +484,7 @@ def main(cfg: DictConfig):
             f"Fold{fold}, best_score{best_score['score']:.5f}, epoch{best_score['epoch']}, step{best_score['step']}")
         print('=' * 40)
 
-        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
+        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, loss_fn, scaler
         gc.collect()
         torch.cuda.empty_cache()
 
