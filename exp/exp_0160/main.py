@@ -202,7 +202,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
-        labels = labels.to(device).long()
+        labels = labels.to(device).float().view(-1, 1)
 
         if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
             labels /= 100
@@ -248,14 +248,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     model.train()
 
-    # if epoch == 0:
-    #     for name, param in model.named_parameters():
-    #         if re.search('model', name):
-    #             param.requires_grad = False
-    # else:
-    for name, param in model.named_parameters():
-        param.requires_grad = True
-
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
     preds_all = []
@@ -266,7 +258,10 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
-        labels = labels.to(device).long()
+        labels = labels.to(device).float().view(-1, 1)
+
+        if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
+            labels /= 100
 
         with autocast():
             mix_p = np.random.rand()
