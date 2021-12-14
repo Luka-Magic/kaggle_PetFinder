@@ -331,6 +331,9 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
+            # early stopping
+            if cfg.mix_p == 0 and train_score - valid_score < -2.:
+                return None
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
