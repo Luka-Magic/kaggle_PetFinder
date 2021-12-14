@@ -104,7 +104,7 @@ def preprocess(data_path, phase):
     df = distribution_label(df)
     cat_df = load_dog_or_cat(data_path)
     df = pd.merge(df, cat_df, on='Id')
-    df['y'] = df.apply(lambda x: x.y if x.is_cat == 0 else x.y + 11)
+    df['y'] = df['y'] + df['is_cat'] * 11
 
     # drop_columns = [column for column in df.columns if re.search(
     #     'feature*', column) or column == 'preds']
