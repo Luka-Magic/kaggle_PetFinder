@@ -73,6 +73,12 @@ def distribution_label(df):
     df['y'] = df.Pawpularity.apply(f)
     return df
 
+def load_dog_or_cat(data_path):
+    df = pd.read_csv(os.path.join(data_path, 'cat_class.csv'))
+    return df
+
+def cat_label(df):
+    pass
 
 def preprocess(data_path, phase):
     '''
@@ -96,6 +102,9 @@ def preprocess(data_path, phase):
     # print(f'keep: {df_keep.shape[0]}, remove: {df_remove.shape[0]}')
 
     df = distribution_label(df)
+    cat_df = load_dog_or_cat(data_path)
+    df = pd.merge(df, cat_df, on='Id')
+    df['y'] = df.apply(lambda x: x.y if x.is_cat == 0 else x.y + 11)
 
     # drop_columns = [column for column in df.columns if re.search(
     #     'feature*', column) or column == 'preds']
