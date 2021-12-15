@@ -480,8 +480,7 @@ def main(cfg: DictConfig):
 
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
-            result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                  valid_loader, device, scheduler, scaler, best_score, model_name)
+            result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,valid_loader, device, scheduler, scaler, best_score, model_name)
             if result == 'stop':
                 break
 

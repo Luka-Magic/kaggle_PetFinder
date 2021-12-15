@@ -13,7 +13,7 @@ device: cuda:0
 # sigma: 10
 # lambda_: 1
 save: True
-save_step: 100
+save_step: 32
 result_output: True
 
 ######   Features   ####################################
@@ -64,7 +64,20 @@ train_aug:
   RandomResizedCrop:
     height: ${img_size}
     width: ${img_size}
+    scale: [0.75, 1.0]
     p: 1.0
+  HorizontalFlip:
+    p: 0.5
+  ShiftScaleRotate:
+    shift_limit: 0.1
+    scale_limit: 0.1
+    rotate_limit: 10
+    p: 0.5
+  Cutout:
+    num_holes: 10
+    max_h_size: 30
+    max_w_size: 30
+    p: 0.5
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
