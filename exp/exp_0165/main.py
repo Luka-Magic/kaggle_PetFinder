@@ -281,6 +281,9 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         scaler.update()
         optimizer.zero_grad()
 
+        if scheduler:
+            scheduler.step()
+
         if cfg.mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_all += [np.clip(torch.sigmoid(
@@ -328,11 +331,9 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
-            # # early stopping
-            # if cfg.mix_p == 0 and train_score - valid_score < -2.:
-            #     return 'stop'
-    if scheduler:
-        scheduler.step()
+            # early stopping
+            if cfg.mix_p == 0 and train_score - valid_score < -2.:
+                return 'stop'
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
@@ -480,7 +481,7 @@ def main(cfg: DictConfig):
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
             result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                           valid_loader, device, scheduler, scaler, best_score, model_name)
+                                  valid_loader, device, scheduler, scaler, best_score, model_name)
             if result == 'stop':
                 break
 

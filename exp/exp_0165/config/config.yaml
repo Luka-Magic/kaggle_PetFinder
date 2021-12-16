@@ -73,6 +73,11 @@ train_aug:
     scale_limit: 0.1
     rotate_limit: 10
     p: 0.5
+  Cutout:
+    num_holes: 10
+    max_h_size: 30
+    max_w_size: 30
+    p: 0.5
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
