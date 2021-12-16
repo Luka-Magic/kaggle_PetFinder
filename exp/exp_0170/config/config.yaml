@@ -12,9 +12,9 @@ cls: [100]
 cls_weights: [1]
 sigma: 10
 lambda_: 0.001
-save: False
-save_step: 32
-result_output: False
+save: True
+save_step: 300
+result_output: True
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
