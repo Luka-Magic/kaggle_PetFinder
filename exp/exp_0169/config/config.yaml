@@ -11,7 +11,7 @@ device: cuda:0
 cls: [100]
 cls_weights: [1]
 sigma: 10
-lambda_: 0.001
+lambda_: 0.002
 save: True
 save_step: 32
 result_output: True
