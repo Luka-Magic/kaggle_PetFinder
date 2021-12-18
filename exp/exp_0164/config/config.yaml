@@ -13,7 +13,7 @@ device: cuda:0
 # sigma: 10
 # lambda_: 1
 save: True
-save_step: 300
+save_step: 75
 result_output: True
 
 ######   Features   ####################################
@@ -27,13 +27,13 @@ gamma: 0.1 # FOCALLoss
 
 ##### Optimizer ########################################
 optimizer: AdamW
-lr: 2e-5
-weight_decay: 1e-2
+lr: 1e-5
+weight_decay: 1e-6
 beta1: 0.5
 beta2: 0.999
 
 ##### Scheduler ########################################
-scheduler: OneCycleLR # OneCycleLR
+scheduler: CosineAnnealingWarmRestarts # OneCycleLR
 T_0: ${epoch} # CAWR
 T_mult: 1 # CAWR
 eta_min: 1e-9 # CAWR

@@ -41,7 +41,6 @@ def load_data(cfg):
     test_df['file_path'] = test_df['Id'].apply(
         lambda x: os.path.join(data_path, f'test/{x}.jpg'))
 
-    train_df['kfold'] = -1
 
     if cfg.fold == 'KFold':
         folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
@@ -281,9 +280,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         scaler.update()
         optimizer.zero_grad()
 
-        if scheduler:
-            scheduler.step()
-
         if cfg.mix_p == 0:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 preds_all += [np.clip(torch.sigmoid(
@@ -331,9 +327,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 else:
                     print(
                         f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
-            # early stopping
-            if cfg.mix_p == 0 and train_score - valid_score < -2.:
-                return 'stop'
+            # # early stopping
+            # if cfg.mix_p == 0 and train_score - valid_score < -2.:
+            #     return 'stop'
+    if scheduler:
+        scheduler.step()
 
     if cfg.mix_p == 0:
         preds_epoch = np.concatenate(preds_all)
@@ -462,10 +460,10 @@ def main(cfg: DictConfig):
 
         if cfg.scheduler == 'OneCycleLR':
             scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                optim, total_steps=cfg.epoch * len(train_loader), max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
+                optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
         elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
+                optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
         if cfg.loss == 'MSELoss':
             loss_fn = nn.MSELoss()
@@ -481,7 +479,7 @@ def main(cfg: DictConfig):
         for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
             # Train Start
             result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                  valid_loader, device, scheduler, scaler, best_score, model_name)
+                                           valid_loader, device, scheduler, scaler, best_score, model_name)
             if result == 'stop':
                 break
 
