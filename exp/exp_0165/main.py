@@ -41,7 +41,6 @@ def load_data(cfg):
     test_df['file_path'] = test_df['Id'].apply(
         lambda x: os.path.join(data_path, f'test/{x}.jpg'))
 
-
     if cfg.fold == 'KFold':
         folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
@@ -328,8 +327,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     print(
                         f"train: {train_score:.5f}, valid: {valid_score:.5f}, epoch: {epoch}, step: {step}")
             # # early stopping
-            # if cfg.mix_p == 0 and train_score - valid_score < -2.:
-            #     return 'stop'
+            if cfg.mix_p == 0 and train_score - valid_score < -3.:
+                return 'stop'
     if scheduler:
         scheduler.step()
 
