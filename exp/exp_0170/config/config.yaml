@@ -13,7 +13,7 @@ cls_weights: [1]
 sigma: 10
 lambda_: 0.001
 save: True
-save_step: 300
+save_step: 75
 result_output: True
 
 ######   Features   ####################################
