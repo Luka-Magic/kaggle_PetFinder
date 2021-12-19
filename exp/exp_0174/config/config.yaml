@@ -22,7 +22,7 @@ dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
 features_num: 128
 
 ######   Loss   ########################################
-loss: BCEWithLogitsLoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
+loss: MSELoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
 gamma: 0. # FOCALLoss
 
 ##### Optimizer ########################################
