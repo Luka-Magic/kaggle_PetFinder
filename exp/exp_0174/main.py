@@ -236,8 +236,8 @@ class RegLoss(nn.Module):
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
             if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                target_reg /= 100
-                pred /= 100
+                target_reg /= 100.
+                pred /= 100.
             losses.append(self.reg_criterion(
                 pred, target_reg))
         return sum(losses) / len(losses)
@@ -262,8 +262,8 @@ class DLDLv2Loss(nn.Module):
 
         kl_loss = kl_loss_fn(input, target)
         reg_loss = reg_loss_fn(input, target)
-        loss = kl_loss + self.lambda_ * reg_loss
-        return loss
+        # loss = kl_loss + self.lambda_ * reg_loss
+        return reg_loss
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
