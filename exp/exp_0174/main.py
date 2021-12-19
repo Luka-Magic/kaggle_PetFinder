@@ -235,8 +235,9 @@ class RegLoss(nn.Module):
         target_reg = target.float().view(-1, 1)
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
-            # if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-            #     target_reg /= 100
+            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+                target_reg /= 100
+                pred /= 100
             losses.append(self.reg_criterion(
                 pred, target_reg))
         return sum(losses) / len(losses)
@@ -245,8 +246,6 @@ class RegLoss(nn.Module):
         interval = 100 // cls
         softmax = nn.Softmax(dim=1)
         x = torch.arange(interval, 100+interval, interval).to('cuda:0')
-        # if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-        #     x /= 100.
         return torch.sum(x * softmax(pred), axis=1, keepdim=True)
 
 
@@ -258,13 +257,13 @@ class DLDLv2Loss(nn.Module):
         self.reg_criterion = reg_criterion
 
     def forward(self, input, target):
-        # kl_loss_fn = KLLoss(self.cfg)
+        kl_loss_fn = KLLoss(self.cfg)
         reg_loss_fn = RegLoss(self.cfg, self.reg_criterion)
 
-        # kl_loss = kl_loss_fn(input, target)
+        kl_loss = kl_loss_fn(input, target)
         reg_loss = reg_loss_fn(input, target)
-        # loss = kl_loss + self.lambda_ * reg_loss
-        return reg_loss
+        loss = kl_loss + self.lambda_ * reg_loss
+        return loss
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -329,7 +328,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         labels = labels.to(device).long()
 
         with autocast():
-            preds = model(imgs, dense)
+            preds, _ = model(imgs, dense)
             loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
@@ -361,14 +360,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     model.train()
 
-    # if epoch == 0:
-    #     for name, param in model.named_parameters():
-    #         if re.search('model', name):
-    #             param.requires_grad = False
-    # else:
-    for name, param in model.named_parameters():
-        param.requires_grad = True
-
     pbar = tqdm(enumerate(train_loader), total=len(train_loader))
 
     preds_all = []
@@ -391,7 +382,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs, dense)
+                preds, _ = model(imgs, dense)
                 loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
