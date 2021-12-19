@@ -328,7 +328,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         labels = labels.to(device).long()
 
         with autocast():
-            preds, _ = model(imgs, dense)
+            preds = model(imgs, dense)
             loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
@@ -378,11 +378,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds, _ = model(imgs, dense)
+                preds = model(imgs, dense)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds, _ = model(imgs, dense)
+                preds = model(imgs, dense)
                 loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
