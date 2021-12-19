@@ -237,7 +237,6 @@ class RegLoss(nn.Module):
             pred = self.calc_pred(cls, pred)
             if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
                 target_reg /= 100.
-                pred /= 100.
             losses.append(self.reg_criterion(
                 pred, target_reg))
         return sum(losses) / len(losses)
@@ -246,6 +245,8 @@ class RegLoss(nn.Module):
         interval = 100 // cls
         softmax = nn.Softmax(dim=1)
         x = torch.arange(interval, 100+interval, interval).to('cuda:0')
+        if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+            x /= 100.
         return torch.sum(x * softmax(pred), axis=1, keepdim=True)
 
 
