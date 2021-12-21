@@ -236,6 +236,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         imgs = imgs.to(device).float()
         targets = labels.to(device).float()
         labels = imgs.to(device).long()
+        print(targets.shape)
 
         with autocast():
             preds = model(imgs)
