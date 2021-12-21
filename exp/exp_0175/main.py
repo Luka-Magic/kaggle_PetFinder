@@ -421,30 +421,31 @@ def main(cfg: DictConfig):
     save_flag = False
 
     for fold in range(cfg.fold_num):
-        
-        if fold == 9:
-            model_name = os.path.join(
-                save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
+        device = torch.device(cfg.device)
+        
+        model_name = os.path.join(
+            save_path, f"{cfg.model_arch}_fold_{fold}.pth")
+        
+        train_fold_df = train_df[train_df['kfold']
+                                != fold].reset_index(drop=True)
+        valid_fold_df = train_df[train_df['kfold']
+                                == fold].reset_index(drop=True)
+    
+        if fold == 9:
             if len(cfg.use_fold) == 1:
                 wandb.init(project=cfg.wandb_project, entity='luka-magic',
                         name=os.getcwd().split('/')[-4], config=cfg)
             else:
                 wandb.init(project=cfg.wandb_project, entity='luka-magic',
                         name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
-
-            train_fold_df = train_df[train_df['kfold']
-                                    != fold].reset_index(drop=True)
-            valid_fold_df = train_df[train_df['kfold']
-                                    == fold].reset_index(drop=True)
-
+            
             train_fold_df, valid_fold_df = preprocess(
                 cfg, train_fold_df, valid_fold_df)
 
             train_loader, valid_loader, _ = prepare_dataloader(
                 cfg, train_fold_df, valid_fold_df)
 
-            device = torch.device(cfg.device)
 
             model = pf_model(cfg, pretrained=True).to(device)
 
