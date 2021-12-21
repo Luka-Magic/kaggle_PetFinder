@@ -139,7 +139,7 @@ class pf_model(nn.Module):
             self.model.head = nn.Identity()
         elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
-            self.model.head = nn.Identity()
+            self.model.classifier = nn.Identity()
 
         self.branch100 = nn.Sequential(
             nn.Linear(self.n_features, 256),
