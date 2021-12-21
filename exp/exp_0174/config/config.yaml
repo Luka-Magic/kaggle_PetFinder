@@ -18,8 +18,8 @@ result_output: True
 
 ######   Features   ####################################
 train_csv: /content/drive/MyDrive/kaggle_PetFinder/outputs/exp_0170/result.csv
-# dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
-# features_num: 128
+dense_columns: ['original'] # 'original', 'basic', 'hash', ('all')
+features_num: 128
 
 ######   Loss   ########################################
 loss: MSELoss # MSELoss, BCEWithLogitsLoss, RMSELoss, FOCALLoss
