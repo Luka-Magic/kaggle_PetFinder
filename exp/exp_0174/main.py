@@ -165,11 +165,9 @@ class KLLoss(nn.Module):
         for cls, pred in zip(self.cls, input):
             softmax = nn.Softmax(dim=1)
             p = torch.log(softmax(pred))
-
             # print(f'pred: {pred.shape}')
             # print(f'p: {p.shape}')
             # print(f'target: {target.shape}')
-
             criterion = nn.KLDivLoss(reduction='batchmean')
             loss = criterion(p, target)
             losses.append(loss / (100 // cls))
@@ -234,8 +232,8 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
     for step, (imgs, targets, labels) in pbar:
         imgs = imgs.to(device).float()
-        targets = labels.to(device).float()
-        labels = imgs.to(device).long()
+        targets = targets.to(device).float()
+        labels = labels.to(device).long()
 
         with autocast():
             preds = model(imgs)
