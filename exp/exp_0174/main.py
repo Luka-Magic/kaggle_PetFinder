@@ -33,7 +33,7 @@ import albumentations
 
 def load_data(cfg):
     data_path = cfg.data_path
-    train_df = pd.read_csv(os.path.join(data_path, f'{cfg.train_csv}.csv'))
+    train_df = pd.read_csv(cfg.train_csv)
     test_df = pd.read_csv(os.path.join(data_path, 'test.csv'))
 
     train_df['file_path'] = train_df['Id'].apply(
@@ -103,14 +103,14 @@ class pf_dataset(Dataset):
             img = img_rgb.transpose(2, 0, 1) / 256.
             img = torch.from_numpy(img).float()
 
-        dense = torch.from_numpy(
-            self.df.loc[index, self.dense_columns].values.astype('float'))
-
         if self.output_label:
-            target = self.df.iloc[index]['Pawpularity']
-            return img, dense, target
+            target_columns = [f'pred_100_{i}' for i in range(100)]
+            target = torch.from_numpy(
+                self.df.loc[index, target_columns].values.astype('float'))
+            label = self.df.iloc[index]['Pawpularity']
+            return img, target, label
 
-        return img, dense
+        return img
 
 
 def get_transforms(cfg, phase):
@@ -141,34 +141,6 @@ class pf_model(nn.Module):
             self.n_features = self.model.classifier.in_features
             self.model.head = nn.Identity()
 
-        self.branch1 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
-        )
-
-        self.branch5 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 5)
-        )
-
-        self.branch10 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 10)
-        )
-
-        self.branch20 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 20)
-        )
-
         self.branch100 = nn.Sequential(
             nn.Linear(self.n_features, 256),
             nn.ReLU(inplace=True),
@@ -176,20 +148,9 @@ class pf_model(nn.Module):
             nn.Linear(256, 100)
         )
 
-    def forward(self, input, dense):
+    def forward(self, input):
         features = self.model(input)
-        outputs = []
-        for cls in self.cls:
-            if cls == 1:
-                outputs.append(self.branch1(features))
-            elif cls == 5:
-                outputs.append(self.branch5(features))
-            elif cls == 10:
-                outputs.append(self.branch10(features))
-            elif cls == 20:
-                outputs.append(self.branch20(features))
-            elif cls == 100:
-                outputs.append(self.branch100(features))
+        outputs = [self.branch100(features)]
         return outputs
 
 
@@ -204,70 +165,10 @@ class KLLoss(nn.Module):
         for cls, pred in zip(self.cls, input):
             softmax = nn.Softmax(dim=1)
             p = torch.log(softmax(pred))
-            q = torch.clamp(self.normal_sampling(
-                target, cls, self.sigma), 1e-10)
             criterion = nn.KLDivLoss(reduction='batchmean')
-            loss = criterion(p, q)
+            loss = criterion(p, target)
             losses.append(loss / (100 // cls))
         return sum(losses) / len(losses)
-
-    def normal_sampling(self, target, cls, sigma):
-        target = target.view(-1, 1)
-        bs = target.shape[0]
-        interval = 100 // cls
-        label = torch.arange(interval, 100+interval,
-                             interval).repeat(bs, 1).int().to('cuda:0')
-        pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
-            (np.sqrt(2*np.pi)*sigma)
-        pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
-        return pdf
-
-
-class RegLoss(nn.Module):
-    def __init__(self, cfg, reg_criterion):
-        super().__init__()
-        self.cls = cfg.cls
-        self.loss = cfg.loss
-        self.reg_criterion = reg_criterion
-
-    def forward(self, input, target):
-        losses = []
-        target_reg = target.float().view(-1, 1)
-        for cls, pred in zip(self.cls, input):
-            pred = self.calc_pred(cls, pred)
-            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                target_reg /= 100.
-            losses.append(self.reg_criterion(
-                pred, target_reg))
-        return sum(losses) / len(losses)
-
-    def calc_pred(self, cls, pred):
-        interval = 100 // cls
-        softmax = nn.Softmax(dim=1)
-
-        if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-            interval /= 100
-            x = torch.range(interval, 1., interval).to('cuda:0')
-        else:
-            x = torch.arange(interval, 100+interval, interval).to('cuda:0')
-        return torch.sum(x * softmax(pred), axis=1, keepdim=True)
-
-
-class DLDLv2Loss(nn.Module):
-    def __init__(self, cfg, reg_criterion):
-        super().__init__()
-        self.lambda_ = cfg.lambda_
-        self.cfg = cfg
-        self.reg_criterion = reg_criterion
-
-    def forward(self, input, target):
-        kl_loss_fn = KLLoss(self.cfg)
-        reg_loss_fn = RegLoss(self.cfg, self.reg_criterion)
-
-        kl_loss = kl_loss_fn(input, target)
-        reg_loss = reg_loss_fn(input, target)
-        loss = kl_loss + self.lambda_ * reg_loss
-        return loss
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -326,14 +227,14 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
     losses = AverageMeter()
 
-    for step, (imgs, dense, labels) in pbar:
+    for step, (imgs, targets, labels) in pbar:
         imgs = imgs.to(device).float()
-        dense = dense.to(device).float()
-        labels = labels.to(device).long()
+        targets = labels.to(device).float()
+        labels = imgs.to(device).long()
 
         with autocast():
-            preds = model(imgs, dense)
-            loss = loss_fn(preds, labels)
+            preds = model(imgs)
+            loss = loss_fn(preds, targets)
         losses.update(loss.item(), cfg.valid_bs)
 
         preds_all += [get_preds(cfg, preds)]
@@ -371,9 +272,9 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     losses = AverageMeter()
 
-    for step, (imgs, dense, labels) in pbar:
+    for step, (imgs, targets, labels) in pbar:
         imgs = imgs.to(device).float()
-        dense = dense.to(device).float()
+        targets = targets.to(device).float()
         labels = labels.to(device).long()
 
         with autocast():
@@ -382,11 +283,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds = model(imgs, dense)
+                preds = model(imgs)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs, dense)
+                preds = model(imgs)
                 loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
@@ -485,12 +386,12 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     preds_list = [[] for _ in range(len(cfg.cls))]
     preds_result_list = []
-    for step, (imgs, dense, _) in pbar:
+    for step, (imgs, _, _) in pbar:
         imgs = imgs.to(device).float()
-        dense = dense.to(device).float()
+
         with autocast():
             with torch.no_grad():
-                preds = features_model(imgs, dense)
+                preds = features_model(imgs)
                 preds_result = get_preds(cfg, preds)
         for i, pred in enumerate(preds):
             preds_list[i].append(torch.sigmoid(pred).detach().cpu().numpy())
@@ -571,15 +472,15 @@ def main(cfg: DictConfig):
             scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 optim, T_0=cfg.T_0 * len(train_loader), T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
-        if cfg.loss == 'MSELoss':
-            reg_criterion = nn.MSELoss()
-        elif cfg.loss == 'BCEWithLogitsLoss':
-            reg_criterion = nn.BCEWithLogitsLoss()
-        elif cfg.loss == 'RMSELoss':
-            reg_criterion = RMSELoss()
-        elif cfg.loss == 'FOCALLoss':
-            reg_criterion = FOCALLoss(gamma=cfg.gamma)
-        loss_fn = DLDLv2Loss(cfg, reg_criterion)
+        # if cfg.loss == 'MSELoss':
+        #     reg_criterion = nn.MSELoss()
+        # elif cfg.loss == 'BCEWithLogitsLoss':
+        #     reg_criterion = nn.BCEWithLogitsLoss()
+        # elif cfg.loss == 'RMSELoss':
+        #     reg_criterion = RMSELoss()
+        # elif cfg.loss == 'FOCALLoss':
+        #     reg_criterion = FOCALLoss(gamma=cfg.gamma)
+        loss_fn = KLLoss(cfg)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
@@ -593,7 +494,7 @@ def main(cfg: DictConfig):
             f"Fold{fold}, best_score{best_score['score']:.5f}, epoch{best_score['epoch']}, step{best_score['step']}")
         print('=' * 40)
 
-        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
+        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, loss_fn, scaler
         gc.collect()
         torch.cuda.empty_cache()
 
