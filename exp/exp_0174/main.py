@@ -236,7 +236,6 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         imgs = imgs.to(device).float()
         targets = labels.to(device).float()
         labels = imgs.to(device).long()
-        print(targets.shape)
 
         with autocast():
             preds = model(imgs)
@@ -282,6 +281,7 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         imgs = imgs.to(device).float()
         targets = targets.to(device).float()
         labels = labels.to(device).long()
+        print(targets.shape)
 
         with autocast():
             mix_p = np.random.rand()
