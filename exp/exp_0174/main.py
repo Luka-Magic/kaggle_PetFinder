@@ -167,8 +167,8 @@ class KLLoss(nn.Module):
             p = torch.log(softmax(pred))
 
             print(f'pred: {pred[0].shape}')
-            print(f'p: {pred[0].shape}')
-            print(f'target: {target[0].shape}')
+            print(f'p: {p.shape}')
+            print(f'target: {target.shape}')
 
             criterion = nn.KLDivLoss(reduction='batchmean')
             loss = criterion(p, target)
