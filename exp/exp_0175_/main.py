@@ -421,78 +421,78 @@ def main(cfg: DictConfig):
     save_flag = False
 
     for fold in range(cfg.fold_num):
-        
-        if fold == 9:
-            model_name = os.path.join(
-                save_path, f"{cfg.model_arch}_fold_{fold}.pth")
+        if fold not in cfg.use_fold:
+            continue
 
-            if len(cfg.use_fold) == 1:
-                wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                        name=os.getcwd().split('/')[-4], config=cfg)
-            else:
-                wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                        name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
+        model_name = os.path.join(
+            save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
-            train_fold_df = train_df[train_df['kfold']
-                                    != fold].reset_index(drop=True)
-            valid_fold_df = train_df[train_df['kfold']
-                                    == fold].reset_index(drop=True)
+        if len(cfg.use_fold) == 1:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4], config=cfg)
+        else:
+            wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
-            train_fold_df, valid_fold_df = preprocess(
-                cfg, train_fold_df, valid_fold_df)
+        train_fold_df = train_df[train_df['kfold']
+                                 != fold].reset_index(drop=True)
+        valid_fold_df = train_df[train_df['kfold']
+                                 == fold].reset_index(drop=True)
 
-            train_loader, valid_loader, _ = prepare_dataloader(
-                cfg, train_fold_df, valid_fold_df)
+        train_fold_df, valid_fold_df = preprocess(
+            cfg, train_fold_df, valid_fold_df)
 
-            device = torch.device(cfg.device)
+        train_loader, valid_loader, _ = prepare_dataloader(
+            cfg, train_fold_df, valid_fold_df)
 
-            model = pf_model(cfg, pretrained=True).to(device)
+        device = torch.device(cfg.device)
 
-            scaler = GradScaler()
+        model = pf_model(cfg, pretrained=True).to(device)
 
-            if cfg.optimizer == 'AdamW':
-                optim = torch.optim.AdamW(
-                    model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
-            elif cfg.optimizer == 'RAdam':
-                optim = torch.optim.RAdam(
-                    model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
+        scaler = GradScaler()
 
-            if cfg.scheduler == 'OneCycleLR':
-                scheduler = torch.optim.lr_scheduler.OneCycleLR(
-                    optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
-            elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
-                scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-                    optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
+        if cfg.optimizer == 'AdamW':
+            optim = torch.optim.AdamW(
+                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
+        elif cfg.optimizer == 'RAdam':
+            optim = torch.optim.RAdam(
+                model.parameters(), lr=cfg.lr, betas=(cfg.beta1, cfg.beta2), weight_decay=cfg.weight_decay)
 
-            if cfg.loss == 'MSELoss':
-                loss_fn = nn.MSELoss()
-            elif cfg.loss == 'BCEWithLogitsLoss':
-                loss_fn = nn.BCEWithLogitsLoss()
-            elif cfg.loss == 'RMSELoss':
-                loss_fn = RMSELoss()
-            elif cfg.loss == 'FOCALLoss':
-                loss_fn = FOCALLoss(gamma=cfg.gamma)
+        if cfg.scheduler == 'OneCycleLR':
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optim, total_steps=cfg.epoch, max_lr=cfg.lr, pct_start=cfg.pct_start, div_factor=cfg.div_factor, final_div_factor=cfg.final_div_factor)
+        elif cfg.scheduler == 'CosineAnnealingWarmRestarts':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                optim, T_0=cfg.T_0, T_mult=cfg.T_mult, eta_min=cfg.eta_min)
 
-            best_score = {'score': 100, 'epoch': 0, 'step': 0}
+        if cfg.loss == 'MSELoss':
+            loss_fn = nn.MSELoss()
+        elif cfg.loss == 'BCEWithLogitsLoss':
+            loss_fn = nn.BCEWithLogitsLoss()
+        elif cfg.loss == 'RMSELoss':
+            loss_fn = RMSELoss()
+        elif cfg.loss == 'FOCALLoss':
+            loss_fn = FOCALLoss(gamma=cfg.gamma)
 
-            for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
-                # Train Start
-                result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                            valid_loader, device, scheduler, scaler, best_score, model_name)
-                if result == 'stop':
-                    break
+        best_score = {'score': 100, 'epoch': 0, 'step': 0}
 
-            print('=' * 40)
-            print(
-                f"Fold{fold}, best_score{best_score['score']:.5f}, epoch{best_score['epoch']}, step{best_score['step']}")
-            print('=' * 40)
+        for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
+            # Train Start
+            result = train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
+                                           valid_loader, device, scheduler, scaler, best_score, model_name)
+            if result == 'stop':
+                break
 
-            del model, train_fold_df, train_loader, valid_loader, optim, scheduler, loss_fn, scaler
-            gc.collect()
-            torch.cuda.empty_cache()
+        print('=' * 40)
+        print(
+            f"Fold{fold}, best_score{best_score['score']:.5f}, epoch{best_score['epoch']}, step{best_score['step']}")
+        print('=' * 40)
+
+        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, loss_fn, scaler
+        gc.collect()
+        torch.cuda.empty_cache()
 
         if cfg.save and cfg.result_output:
-            print(f'fold{fold} saved')
             if save_flag == False:
                 results_df = result_output(cfg, fold, valid_fold_df,
                                            model_name, save_path, device)
