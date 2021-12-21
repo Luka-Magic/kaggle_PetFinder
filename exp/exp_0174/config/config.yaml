@@ -6,7 +6,7 @@ epoch: 10
 fold: StratifiedKFold
 fold_num: 10
 use_fold: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-model_arch: tf_efficientnet_b4_ns
+model_arch: tf_efficientnet_b3_ns
 device: cuda:0
 cls: [100]
 cls_weights: [1]
