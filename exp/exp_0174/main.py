@@ -166,6 +166,8 @@ class KLLoss(nn.Module):
             softmax = nn.Softmax(dim=1)
             p = torch.log(softmax(pred))
             criterion = nn.KLDivLoss(reduction='batchmean')
+            print(p.shape)
+            print(target.shape)
             loss = criterion(p, target)
             losses.append(loss / (100 // cls))
         return sum(losses) / len(losses)
@@ -277,9 +279,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
         targets = targets.to(device).float()
         labels = labels.to(device).long()
 
-        print(targets.shape)
-        print(labels.shape)
-
         with autocast():
             mix_p = np.random.rand()
             mix_list = list(range(cfg.init_nomix_epoch,
@@ -291,7 +290,6 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
                 preds = model(imgs)
-                print(preds[0].shape)
                 loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
