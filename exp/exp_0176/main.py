@@ -41,7 +41,6 @@ def load_data(cfg):
     test_df['file_path'] = test_df['Id'].apply(
         lambda x: os.path.join(data_path, f'test/{x}.jpg'))
 
-
     if cfg.fold == 'KFold':
         folds = KFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
@@ -449,7 +448,7 @@ def main(cfg: DictConfig):
 
         model = pf_model(cfg, pretrained=True).to(device)
         model.load_state_dict(torch.load(
-            '/content/drive/MyDrive/kaggle_PetFinder/outputs/exp_0174/tf_efficientnet_b3_ns_fold_0.pth'))
+            '/content/drive/MyDrive/kaggle_PetFinder/outputs/exp_0174/tf_efficientnet_b3_ns_fold_0.pth'), strict=False)
 
         scaler = GradScaler()
 
