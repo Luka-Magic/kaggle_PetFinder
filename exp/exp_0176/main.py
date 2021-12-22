@@ -448,7 +448,7 @@ def main(cfg: DictConfig):
 
         model = pf_model(cfg, pretrained=True).to(device)
         model.load_state_dict(torch.load(
-            f'/content/drive/MyDrive/kaggle_PetFinder/outputs/exp_0174/tf_efficientnet_b3_ns_fold_{fold}.pth'))
+            f'/content/drive/MyDrive/kaggle_PetFinder/outputs/exp_0174/tf_efficientnet_b3_ns_fold_{fold}.pth'), strict=False)
 
         scaler = GradScaler()
 
