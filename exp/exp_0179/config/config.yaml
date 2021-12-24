@@ -54,8 +54,8 @@ num_workers: 2
 
 ##### MixUp #############################################
 mix_p: 0.5
-init_nomix_epoch: 1
-last_nomix_epoch: 1
+init_nomix_epoch: 0
+last_nomix_epoch: 0
 
 ##### Data Augmentation #################################
 padding: None
