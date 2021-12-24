@@ -437,6 +437,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
+                if mix_p != 0:
+                    train_score = 0.0
                 if best_score['score'] > valid_score:
                     torch.save(model.state_dict(), model_name)
 
