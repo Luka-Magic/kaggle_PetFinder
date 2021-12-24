@@ -12,9 +12,9 @@ cls: [100]
 cls_weights: [1]
 sigma: 10
 lambda_: 0.001
-save: True
+save: False
 save_step: 75
-result_output: True
+result_output: False
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
@@ -66,13 +66,13 @@ train_aug:
     width: ${img_size}
     # scale: [0.75, 1.0]
     p: 1.0
-  # HorizontalFlip:
-  #   p: 0.5
-  # ShiftScaleRotate:
-  #   shift_limit: 0.1
-  #   scale_limit: 0.1
-  #   rotate_limit: 10
-  #   p: 0.5
+  HorizontalFlip:
+    p: 0.5
+  ShiftScaleRotate:
+    shift_limit: 0.1
+    scale_limit: 0.1
+    rotate_limit: 10
+    p: 0.5
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
