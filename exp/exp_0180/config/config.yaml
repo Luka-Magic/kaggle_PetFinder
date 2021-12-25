@@ -12,9 +12,9 @@ cls: [100]
 cls_weights: [1]
 sigma: 10
 lambda_: 0.001
-save: False
+save: True
 save_step: 75
-result_output: False
+result_output: True
 
 ######   Features   ####################################
 train_csv: 'train' # {train_csv}.csv
@@ -29,7 +29,7 @@ gamma: 0. # FOCALLoss
 optimizer: AdamW
 lr: 2e-5
 weight_decay: 1e-6
-beta1: 0.5
+beta1: 0.9
 beta2: 0.999
 
 ##### Scheduler ########################################
@@ -53,7 +53,7 @@ valid_bs: 32
 num_workers: 2
 
 ##### MixUp #############################################
-mix_p: 0
+mix_p: 0.
 init_nomix_epoch: 0
 last_nomix_epoch: 0
 
@@ -64,15 +64,7 @@ train_aug:
   RandomResizedCrop:
     height: ${img_size}
     width: ${img_size}
-    # scale: [0.75, 1.0]
     p: 1.0
-  HorizontalFlip:
-    p: 0.5
-  ShiftScaleRotate:
-    shift_limit: 0.1
-    scale_limit: 0.1
-    rotate_limit: 10
-    p: 0.5
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
