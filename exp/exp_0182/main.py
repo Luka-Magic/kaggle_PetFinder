@@ -283,7 +283,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
         labels = labels.to(device).long()
 
         with autocast():
-            preds = model(imgs, dense)
+            preds = model(imgs)
             loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
@@ -341,11 +341,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                             cfg.epoch-cfg.last_nomix_epoch))
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
-                preds = model(imgs, dense)
+                preds = model(imgs)
                 loss = loss_fn(
                     preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
-                preds = model(imgs, dense)
+                preds = model(imgs)
                 loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
@@ -451,7 +451,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
         dense = dense.to(device).float()
         with autocast():
             with torch.no_grad():
-                preds = features_model(imgs, dense)
+                preds = features_model(imgs)
                 preds_result = get_preds(cfg, preds)
         for i, pred in enumerate(preds):
             preds_list[i].append(torch.sigmoid(pred).detach().cpu().numpy())
