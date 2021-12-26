@@ -262,9 +262,8 @@ class DLDLv2Loss(nn.Module):
 
         kl_loss = kl_loss_fn(input, target)
         reg_loss = reg_loss_fn(input, target)
-        print(f'{kl_loss.detach().item()} + {self.lambda_} * {reg_loss.detach().item()}')
-        # loss = kl_loss + self.lambda_ * reg_loss
-        return kl_loss, reg_loss
+        loss = kl_loss + self.lambda_ * reg_loss
+        return loss
 
 
 def prepare_dataloader(cfg, train_df, valid_df):
@@ -330,8 +329,7 @@ def valid_function(cfg, epoch, model, loss_fn, data_loader, device):
 
         with autocast():
             preds = model(imgs, dense)
-            kl_loss, reg_loss = loss_fn(preds, labels)
-            loss = kl_loss + cfg.lambda_ * reg_loss
+            loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.valid_bs)
 
         preds_all += [get_preds(cfg, preds)]
@@ -389,16 +387,11 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
             if (mix_p < cfg.mix_p) and (epoch in mix_list):
                 imgs, labels = mixup(imgs, labels, 1.)
                 preds = model(imgs, dense)
-                kl_loss1, reg_loss1 = loss_fn(
-                    preds, labels[0]) * labels[2]
-                kl_loss2, reg_loss2 = loss_fn(
-                    preds, labels[1]) * (1. - labels[2])
-                loss = (kl_loss1 + kl_loss2) + \
-                    cfg.lambda_ * (reg_loss1 + reg_loss2)
+                loss = loss_fn(
+                    preds, labels[0]) * labels[2] + loss_fn(preds, labels[1]) * (1. - labels[2])
             else:
                 preds = model(imgs, dense)
-                kl_loss, reg_loss = loss_fn(preds, labels)
-                loss = kl_loss + cfg.lambda_ * reg_loss
+                loss = loss_fn(preds, labels)
         losses.update(loss.item(), cfg.train_bs)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -438,6 +431,8 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
                            'valid_loss': valid_losses, 'epoch': epoch, 'step_sum': epoch*len(train_loader) + step, 'lr': lr})
 
             if cfg.save:
+                if mix_p != 0:
+                    train_score = 0.0
                 if best_score['score'] > valid_score:
                     torch.save(model.state_dict(), model_name)
 
