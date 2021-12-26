@@ -11,7 +11,7 @@ device: cuda:0
 cls: [100]
 cls_weights: [1]
 sigma: 10
-lambda_: 0.1
+lambda_: 0.03
 save: True
 save_step: 75
 result_output: True
@@ -65,13 +65,13 @@ train_aug:
     height: ${img_size}
     width: ${img_size}
     p: 1.0
-  HorizontalFlip:
-    p: 0.5
-  ShiftScaleRotate:
-    shift_limit: 0.1
-    scale_limit: 0.1
-    rotate_limit: 10
-    p: 0.5
+  # HorizontalFlip:
+  #   p: 0.5
+  # ShiftScaleRotate:
+  #   shift_limit: 0.1
+  #   scale_limit: 0.1
+  #   rotate_limit: 10
+  #   p: 0.5
   Normalize:
     mean: ${img_mean}
     std: ${img_std}
