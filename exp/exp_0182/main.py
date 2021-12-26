@@ -140,56 +140,13 @@ class pf_model(nn.Module):
         elif re.search(r'tf*', cfg.model_arch):
             self.n_features = self.model.classifier.in_features
             self.model.head = nn.Identity()
-
-        self.branch1 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
+        self.branch150 = nn.Sequential(
+            nn.Linear(self.n_features, 150)
         )
 
-        self.branch5 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 5)
-        )
-
-        self.branch10 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 10)
-        )
-
-        self.branch20 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 20)
-        )
-
-        self.branch100 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 100)
-        )
-
-    def forward(self, input, dense):
+    def forward(self, input):
         features = self.model(input)
-        outputs = []
-        for cls in self.cls:
-            if cls == 1:
-                outputs.append(self.branch1(features))
-            elif cls == 5:
-                outputs.append(self.branch5(features))
-            elif cls == 10:
-                outputs.append(self.branch10(features))
-            elif cls == 20:
-                outputs.append(self.branch20(features))
-            elif cls == 100:
-                outputs.append(self.branch100(features))
+        outputs = [self.branch150(features)]
         return outputs
 
 
@@ -214,9 +171,8 @@ class KLLoss(nn.Module):
     def normal_sampling(self, target, cls, sigma):
         target = target.view(-1, 1)
         bs = target.shape[0]
-        interval = 100 // cls
-        label = torch.arange(interval, 100+interval,
-                             interval).repeat(bs, 1).int().to('cuda:0')
+        x = torch.arange(-24, 126, 1)
+        label = x.repeat(bs, 1).int().to('cuda:0')
         pdf = torch.exp(-(label-target)**2/(2*sigma**2)) / \
             (np.sqrt(2*np.pi)*sigma)
         pdf = torch.clamp(pdf / pdf.sum(dim=1, keepdim=True), 1e-10)
@@ -235,17 +191,17 @@ class RegLoss(nn.Module):
         target_reg = target.float().view(-1, 1)
         for cls, pred in zip(self.cls, input):
             pred = self.calc_pred(cls, pred)
-            if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
-                target_reg /= 100
-                pred /= 100
+            # if self.loss == 'BCEWithLogitsLoss' or self.loss == 'FOCALLoss':
+            #     target_reg /= 100
+            #     pred /= 100
             losses.append(self.reg_criterion(
                 pred, target_reg))
         return sum(losses) / len(losses)
 
     def calc_pred(self, cls, pred):
-        interval = 100 // cls
+        # interval = 100 // cls
         softmax = nn.Softmax(dim=1)
-        x = torch.arange(interval, 100+interval, interval).to('cuda:0')
+        x = torch.arange(-24, 126, 1).to('cuda:0')
         return torch.sum(x * softmax(pred), axis=1, keepdim=True)
 
 
@@ -303,9 +259,8 @@ def prepare_dataloader(cfg, train_df, valid_df):
 def get_preds(cfg, preds):
     outputs = []
     for pred, cls in zip(preds, cfg.cls):
-        interval = 100 // cls
         softmax = nn.Softmax(dim=1)
-        x = torch.arange(interval, 100+interval, interval).to('cuda:0')
+        x = torch.arange(-24, 126, 1).to('cuda:0')
         outputs += [torch.sum(x * softmax(pred), axis=1,
                               keepdim=True).detach().cpu().numpy()]
     return np.mean(np.concatenate(outputs, axis=1), axis=1)[:, np.newaxis]
@@ -489,7 +444,7 @@ def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
 
     pbar = tqdm(enumerate(data_loader), total=len(data_loader))
 
-    preds_list = [[] for _ in range(len(cfg.cls))]
+    preds_list = [[] for _ in range(len(150))]
     preds_result_list = []
     for step, (imgs, dense, _) in pbar:
         imgs = imgs.to(device).float()

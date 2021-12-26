@@ -142,41 +142,26 @@ class pf_model(nn.Module):
             self.model.head = nn.Identity()
 
         self.branch1 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 1)
+            nn.Linear(self.n_features, 1)
         )
 
         self.branch5 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 5)
+            nn.Linear(self.n_features, 5)
         )
 
         self.branch10 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 10)
+            nn.Linear(self.n_features, 10)
         )
 
         self.branch20 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 20)
+            nn.Linear(self.n_features, 20)
         )
 
         self.branch100 = nn.Sequential(
-            nn.Linear(self.n_features, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.5, inplace=False),
-            nn.Linear(256, 100)
+            nn.Linear(self.n_features, 100)
         )
 
-    def forward(self, input, dense):
+    def forward(self, input):
         features = self.model(input)
         outputs = []
         for cls in self.cls:
