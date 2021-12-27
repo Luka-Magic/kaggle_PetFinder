@@ -524,12 +524,13 @@ def main(cfg: DictConfig):
         model_name = os.path.join(
             save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
-        if len(cfg.use_fold) == 1:
-            wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                       name=os.getcwd().split('/')[-4], config=cfg)
-        else:
-            wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
+        if fold in [8, 9]:
+            if len(cfg.use_fold) == 1:
+                wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                           name=os.getcwd().split('/')[-4], config=cfg)
+            else:
+                wandb.init(project=cfg.wandb_project, entity='luka-magic',
+                           name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
         train_fold_df = train_df[train_df['kfold']
                                  != fold].reset_index(drop=True)
@@ -573,11 +574,11 @@ def main(cfg: DictConfig):
         loss_fn = DLDLv2Loss(cfg, reg_criterion)
 
         best_score = {'score': 100, 'epoch': 0, 'step': 0}
-
-        for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
-            # Train Start
-            train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
-                                  valid_loader, device, scheduler, scaler, best_score, model_name)
+        if fold in [8, 9]:
+            for epoch in tqdm(range(cfg.epoch), total=cfg.epoch):
+                # Train Start
+                train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
+                                      valid_loader, device, scheduler, scaler, best_score, model_name)
 
         print('=' * 40)
         print(
