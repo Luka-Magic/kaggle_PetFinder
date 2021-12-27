@@ -53,9 +53,9 @@ valid_bs: 32
 num_workers: 2
 
 ##### MixUp #############################################
-mix_p: 0.
-init_nomix_epoch: 0
-last_nomix_epoch: 0
+mix_p: 0.2
+init_nomix_epoch: 1
+last_nomix_epoch: 1
 
 ##### Data Augmentation #################################
 padding: None
@@ -64,20 +64,33 @@ train_aug:
   RandomResizedCrop:
     height: ${img_size}
     width: ${img_size}
-    scale: [0.75, 1.0]
     p: 1.0
-  HorizontalFlip:
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+  HorizontalFlip: 
     p: 0.5
   ShiftScaleRotate:
     shift_limit: 0.1
     scale_limit: 0.1
     rotate_limit: 10
     p: 0.5
-  Normalize:
-    mean: ${img_mean}
-    std: ${img_std}
-    max_pixel_value: 255.0
-    p: 1.0
+  HueSaturationValue:
+    hue_shift_limit: 0.2
+    sat_shift_limit: 0.2
+    val_shift_limit: 0.2
+    p: 0.25
+  RandomBrightnessContrast:
+    brightness_limit: 0.1
+    contrast_limit: 0.1
+    p: 0.25
+  Cutout:
+    num_holes: 10
+    max_h_size: 30
+    max_w_size: 30
+    p: 0.2
 
 valid_aug:
   Resize:
