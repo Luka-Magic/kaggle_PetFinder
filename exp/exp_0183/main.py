@@ -328,6 +328,14 @@ def train_valid_one_epoch(cfg, epoch, model, loss_fn, optimizer, train_loader, v
 
     losses = AverageMeter()
 
+    if epoch == 0:
+        for name, param in model.named_parameters():
+            if re.search('model', name):
+                param.requires_grad = False
+    else:
+        for name, param in model.named_parameters():
+            param.requires_grad = True
+
     for step, (imgs, dense, labels) in pbar:
         imgs = imgs.to(device).float()
         dense = dense.to(device).float()
