@@ -49,6 +49,9 @@ def load_data(cfg):
     elif cfg.fold == 'StratifiedKFold':
         folds = StratifiedKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
             X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values)
+    elif cfg.fold == 'StratifiedGroupKFold':
+        folds = StratifiedGroupKFold(n_splits=cfg.fold_num, shuffle=True, random_state=cfg.seed).split(
+            X=np.arange(train_df.shape[0]), y=train_df.Pawpularity.values, groups=train_df.group.values)
     for fold, (train_index, valid_index) in enumerate(folds):
         train_df.loc[valid_index, 'kfold'] = fold
 
