@@ -11,7 +11,7 @@ device: cuda:0
 cls: [1, 5, 10, 20, 100]
 cls_weights: [1, 1, 1, 1, 1]
 save: True
-save_step: 150
+save_step: 300
 result_output: True
 
 ######   Features   ####################################
