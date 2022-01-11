@@ -455,10 +455,10 @@ def result_output(cfg, tta, fold, train_fold_df, valid_fold_df, model_name, save
     _, valid_loader, valid_hflip_loader, valid_tta_loader = prepare_dataloader(
         cfg, train_fold_df, valid_fold_df)
 
-    for i in range(tta):
+    for k in range(tta):
         preds_list = [[] for _ in range(len(cfg.cls))]
         preds_result_list = []
-        if i == 0:
+        if k == 0:
             pbar = tqdm(enumerate(valid_loader), total=len(valid_loader))
         else:
             if tta == 2:
@@ -490,7 +490,7 @@ def result_output(cfg, tta, fold, train_fold_df, valid_fold_df, model_name, save
                 f'pred_{cls}_{c}' for cls in cfg.cls for c in range(cls)]
         else:
             cls_columns = [
-                f'pred_{cls}_{c}_tta{i}' for cls in cfg.cls for c in range(cls)]
+                f'pred_{cls}_{c}_tta{k}' for cls in cfg.cls for c in range(cls)]
 
         result_df = pd.concat([result_df, pd.DataFrame(
             preds_class_all, columns=cls_columns)], axis=1)
