@@ -595,7 +595,7 @@ def main(cfg: DictConfig):
 
     for tta in cfg.ttas:
         save_flag = False
-        print(f'tta-{tta}')
+        print(f'saving... result_{tta}.csv')
         for fold in range(cfg.fold_num):
             if fold not in cfg.use_fold:
                 continue
@@ -617,9 +617,13 @@ def main(cfg: DictConfig):
                     results_df = pd.concat([results_df, result_output(cfg, tta, fold, train_fold_df, valid_fold_df,
                                                                       model_name, save_path, device)], axis=0)
         if save_flag:
-            results_df.to_csv(os.path.join(
-                save_path, 'result.csv'), index=False)
-
+            if tta == 1:
+                results_df.to_csv(os.path.join(
+                    save_path, 'result.csv'), index=False)
+            else:
+                results_df.to_csv(os.path.join(
+                    save_path, f'result_tta{tta}.csv'), index=False)
+    print('ALL FINISH!')
 
 if __name__ == '__main__':
     main()
