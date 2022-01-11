@@ -527,17 +527,17 @@ def main(cfg: DictConfig):
         model_name = os.path.join(
             save_path, f"{cfg.model_arch}_fold_{fold}.pth")
 
-        if len(cfg.use_fold) == 1:
-            wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                       name=os.getcwd().split('/')[-4], config=cfg)
-        else:
-            wandb.init(project=cfg.wandb_project, entity='luka-magic',
-                       name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
+        # if len(cfg.use_fold) == 1:
+        #     wandb.init(project=cfg.wandb_project, entity='luka-magic',
+        #                name=os.getcwd().split('/')[-4], config=cfg)
+        # else:
+        #     wandb.init(project=cfg.wandb_project, entity='luka-magic',
+        #                name=os.getcwd().split('/')[-4] + f'_{fold}', config=cfg)
 
-        # train_fold_df = train_df[train_df['kfold']
-        #                          != fold].reset_index(drop=True)
-        # valid_fold_df = train_df[train_df['kfold']
-        #                          == fold].reset_index(drop=True)
+        train_fold_df = train_df[train_df['kfold']
+                                 != fold].reset_index(drop=True)
+        valid_fold_df = train_df[train_df['kfold']
+                                 == fold].reset_index(drop=True)
 
         train_fold_df, valid_fold_df = preprocess(
             cfg, train_fold_df, valid_fold_df)
