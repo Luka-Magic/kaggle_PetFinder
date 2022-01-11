@@ -593,9 +593,9 @@ def main(cfg: DictConfig):
 
     ## save phase ##
 
-    save_flag = False
-
     for tta in cfg.ttas:
+        save_flag = False
+        print(f'tta-{tta}')
         for fold in range(cfg.fold_num):
             if fold not in cfg.use_fold:
                 continue
