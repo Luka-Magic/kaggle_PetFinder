@@ -10,9 +10,12 @@ model_arch: swin_large_patch4_window7_224
 device: cuda:0
 cls: [1, 5, 10, 20, 100]
 cls_weights: [1, 1, 1, 1, 1]
+
+######   save settings   ###############################
 save: True
 save_step: 40
 result_output: True
+ttas: [1, 2, 4]
 
 ######   Features   ####################################
 train_csv: 'train_5' # {train_csv}.csv
@@ -80,6 +83,18 @@ valid_aug:
   Resize:
     height: ${img_size}
     width: ${img_size}
+  Normalize:
+    mean: ${img_mean}
+    std: ${img_std}
+    max_pixel_value: 255.0
+    p: 1.0
+
+hflip_aug:
+  Resize:
+    height: ${img_size}
+    width: ${img_size}
+  HorizontalFlip:
+    p: 1.0
   Normalize:
     mean: ${img_mean}
     std: ${img_std}

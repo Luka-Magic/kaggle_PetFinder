@@ -121,6 +121,8 @@ def get_transforms(cfg, phase):
         aug = cfg.train_aug
     elif phase == 'valid':
         aug = cfg.valid_aug
+    elif phase == 'hflip':
+        aug = cfg.hflip_aug
     elif phase == 'tta':
         aug = cfg.tta_aug
 
@@ -230,8 +232,10 @@ def prepare_dataloader(cfg, train_df, valid_df):
                           transforms=get_transforms(cfg, 'train'))
     valid_ds = pf_dataset(cfg, valid_df, 'valid',
                           transforms=get_transforms(cfg, 'valid'))
-    valid_tta_ds = pf_dataset(
-        cfg, valid_df, 'valid', transforms=get_transforms(cfg, 'tta'))
+    valid_hflip_ds = pf_dataset(cfg, valid_df, 'valid',
+                                transforms=get_transforms(cfg, 'hflip'))
+    valid_tta_ds = pf_dataset(cfg, valid_df, 'valid',
+                              transforms=get_transforms(cfg, 'tta'))
 
     train_loader = DataLoader(
         train_ds,
@@ -249,6 +253,14 @@ def prepare_dataloader(cfg, train_df, valid_df):
         pin_memory=True
     )
 
+    valid_hflip_loader = DataLoader(
+        valid_hflip_ds,
+        batch_size=cfg.valid_bs,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        pin_memory=True
+    )
+
     valid_tta_loader = DataLoader(
         valid_tta_ds,
         batch_size=cfg.valid_bs,
@@ -256,12 +268,12 @@ def prepare_dataloader(cfg, train_df, valid_df):
         num_workers=cfg.num_workers,
         pin_memory=True
     )
-    return train_loader, valid_loader, valid_tta_loader
+    return train_loader, valid_loader, valid_hflip_loader, valid_tta_loader
 
 
 def get_preds(cfg, preds):
     outputs = []
-    for pred, cls in zip(preds, cfg.cls):   
+    for pred, cls in zip(preds, cfg.cls):
         if cls == 1:
             if cfg.loss == 'BCEWithLogitsLoss' or cfg.loss == 'FOCALLoss':
                 outputs += [np.clip(torch.sigmoid(
@@ -431,50 +443,62 @@ def preprocess(cfg, train_fold_df, valid_fold_df):
     return train_fold_df, valid_fold_df
 
 
-def result_output(cfg, fold, valid_fold_df, model_name, save_path, device):
+def result_output(cfg, tta, fold, train_fold_df, valid_fold_df, model_name, save_path, device):
     model = pf_model(cfg, pretrained=False)
     model.load_state_dict(torch.load(model_name))
     features_model = model.to(device)
-
-    ds = pf_dataset(cfg, valid_fold_df, 'valid',
-                    transforms=get_transforms(cfg, 'valid'))
-
-    data_loader = DataLoader(
-        ds,
-        batch_size=cfg.valid_bs,
-        shuffle=False,
-        num_workers=cfg.num_workers,
-        pin_memory=True
-    )
 
     result_df = valid_fold_df.copy()
 
     features_model.eval()
 
-    pbar = tqdm(enumerate(data_loader), total=len(data_loader))
+    _, valid_loader, valid_hflip_loader, valid_tta_loader = prepare_dataloader(
+        cfg, train_fold_df, valid_fold_df)
 
-    preds_list = [[] for _ in range(len(cfg.cls))]
-    preds_result_list = []
-    for step, (imgs, dense, _) in pbar:
-        imgs = imgs.to(device).float()
-        dense = dense.to(device).float()
-        with autocast():
-            with torch.no_grad():
-                preds = features_model(imgs)
-                preds_result = get_preds(cfg, preds)
-        for i, pred in enumerate(preds):
-            preds_list[i].append(torch.sigmoid(pred).detach().cpu().numpy())
-        preds_result_list += [preds_result]
+    for i in range(tta):
+        preds_list = [[] for _ in range(len(cfg.cls))]
+        preds_result_list = []
+        if i == 0:
+            pbar = tqdm(enumerate(valid_loader), total=len(valid_loader))
+        else:
+            if tta == 2:
+                pbar = tqdm(enumerate(valid_hflip_loader),
+                            total=len(valid_hflip_loader))
+            else:
+                pbar = tqdm(enumerate(valid_tta_loader),
+                            total=len(valid_tta_loader))
 
-    preds_class_all = np.concatenate(
-        [np.concatenate(preds_list[i]) for i in range(len(cfg.cls))], axis=1)
-    preds_all = np.concatenate(preds_result_list)
+        for step, (imgs, dense, _) in pbar:
+            imgs = imgs.to(device).float()
+            dense = dense.to(device).float()
 
-    cls_columns = [f'pred_{cls}_{c}' for cls in cfg.cls for c in range(cls)]
+            with autocast():
+                with torch.no_grad():
+                    preds = features_model(imgs)
+                    preds_result = get_preds(cfg, preds)
+            for i, pred in enumerate(preds):
+                preds_list[i].append(torch.sigmoid(
+                    pred).detach().cpu().numpy())
+            preds_result_list += [preds_result]
 
-    result_df = pd.concat([result_df, pd.DataFrame(
-        preds_class_all, columns=cls_columns)], axis=1)
-    result_df['preds'] = preds_all
+        preds_class_all = np.concatenate(
+            [np.concatenate(preds_list[i]) for i in range(len(cfg.cls))], axis=1)
+        preds_all = np.concatenate(preds_result_list)
+        
+        if tta == 1:
+            cls_columns = [
+                f'pred_{cls}_{c}' for cls in cfg.cls for c in range(cls)]
+        else:
+            cls_columns = [
+                f'pred_{cls}_{c}_tta{i}' for cls in cfg.cls for c in range(cls)]
+
+        result_df = pd.concat([result_df, pd.DataFrame(
+            preds_class_all, columns=cls_columns)], axis=1)
+        if tta == 1:
+            result_df['preds'] = preds_all
+        else:
+            result_df[f'preds_tta{i}'] = preds_all
+    
     return result_df
 
 
@@ -518,7 +542,7 @@ def main(cfg: DictConfig):
         train_fold_df, valid_fold_df = preprocess(
             cfg, train_fold_df, valid_fold_df)
 
-        train_loader, valid_loader, _ = prepare_dataloader(
+        train_loader, valid_loader, _, _ = prepare_dataloader(
             cfg, train_fold_df, valid_fold_df)
 
         device = torch.device(cfg.device)
@@ -563,20 +587,38 @@ def main(cfg: DictConfig):
             f"Fold: {fold}, best_score: {best_score['score']:.5f}, epoch: {best_score['epoch']}, step: {best_score['step']}")
         print('=' * 40)
 
-        del model, train_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
+        del model, train_fold_df, valid_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
         gc.collect()
         torch.cuda.empty_cache()
 
-        if cfg.save and cfg.result_output:
-            if save_flag == False:
-                results_df = result_output(cfg, fold, valid_fold_df,
-                                           model_name, save_path, device)
-                save_flag = True
-            else:
-                results_df = pd.concat([results_df, result_output(cfg, fold, valid_fold_df,
-                                                                  model_name, save_path, device)], axis=0)
-    if save_flag:
-        results_df.to_csv(os.path.join(save_path, 'result.csv'), index=False)
+    ## save phase ##
+
+    save_flag = False
+
+    for tta in cfg.ttas:
+        for fold in range(cfg.fold_num):
+            if fold not in cfg.use_fold:
+                continue
+
+            train_fold_df = train_df[train_df['kfold']
+                                     != fold].reset_index(drop=True)
+            valid_fold_df = train_df[train_df['kfold']
+                                     == fold].reset_index(drop=True)
+
+            model_name = os.path.join(
+                save_path, f"{cfg.model_arch}_fold_{fold}.pth")
+
+            if cfg.save and cfg.result_output:
+                if save_flag == False:
+                    results_df = result_output(cfg, tta, fold, train_fold_df, valid_fold_df,
+                                               model_name, save_path, device)
+                    save_flag = True
+                else:
+                    results_df = pd.concat([results_df, result_output(cfg, tta, fold, train_fold_df, valid_fold_df,
+                                                                      model_name, save_path, device)], axis=0)
+        if save_flag:
+            results_df.to_csv(os.path.join(
+                save_path, 'result.csv'), index=False)
 
 
 if __name__ == '__main__':
