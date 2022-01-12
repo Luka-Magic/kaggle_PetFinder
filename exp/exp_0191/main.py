@@ -497,7 +497,7 @@ def result_output(cfg, tta, fold, train_fold_df, valid_fold_df, model_name, save
         if tta == 1:
             result_df['preds'] = preds_all
         else:
-            result_df[f'preds_tta{i}'] = preds_all
+            result_df[f'preds_tta{k}'] = preds_all
 
     return result_df
 
