@@ -13,7 +13,7 @@ cls_weights: [1, 1, 1, 1, 1]
 
 ######   save settings   ###############################
 save: True
-save_step: 160
+save_step: 280
 result_output: True
 ttas: [1, 2, 4]
 
