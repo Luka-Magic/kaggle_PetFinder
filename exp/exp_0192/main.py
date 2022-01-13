@@ -584,10 +584,10 @@ def main(cfg: DictConfig):
                 train_valid_one_epoch(cfg, epoch, model, loss_fn, optim, train_loader,
                                     valid_loader, device, scheduler, scaler, best_score, model_name)
 
-        print('=' * 40)
-        print(
-            f"Fold: {fold}, best_score: {best_score['score']:.5f}, epoch: {best_score['epoch']}, step: {best_score['step']}")
-        print('=' * 40)
+            print('=' * 40)
+            print(
+                f"Fold: {fold}, best_score: {best_score['score']:.5f}, epoch: {best_score['epoch']}, step: {best_score['step']}")
+            print('=' * 40)
 
         del model, train_fold_df, valid_fold_df, train_loader, valid_loader, optim, scheduler, reg_criterion, loss_fn, scaler
         gc.collect()
